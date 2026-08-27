@@ -1,36 +1,26 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Koreksi Tugas
 
-## Getting Started
+Sistem koreksi otomatis untuk tugas video praktikum Teknologi Rekayasa Otomasi (TRO). Mahasiswa mengirim link video YouTube penjelasan materi; sistem (nantinya) mentranskrip video tersebut dan mencocokkannya dengan rubrik tugas untuk menghasilkan penilaian per topik secara otomatis.
 
-First, run the development server:
+Lihat [`PRODUCT.md`](./PRODUCT.md) untuk detail produk, pengguna, dan status pengembangan saat ini.
+
+## Menjalankan proyek
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka [http://localhost:3000](http://localhost:3000) di browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Struktur singkat
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `src/app/(mahasiswa)` — halaman mahasiswa: kirim tugas, riwayat pengumpulan, profil.
+- `src/app/admin` — halaman admin (asisten praktikum & dosen): daftar pengumpulan dan pengaturan tugas/rubrik/kelas/angkatan.
+- `src/app/login` — halaman login (Google, belum terhubung ke `next-auth`).
+- `src/components/ui` — komponen shadcn/ui.
+- `src/lib`, `src/hooks` — data master (localStorage, sementara) dan util.
 
-## Learn More
+## Status
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Frontend sudah dibangun dengan data contoh (dummy). Belum terhubung: autentikasi Google, backend/API pengumpulan tugas, transkripsi video, dan mesin penilaian berbasis LLM.
