@@ -1,32 +1,69 @@
 "use client";
 
-import type { SetStateAction } from "react";
+import { useEffect, useState, type SetStateAction } from "react";
 
-import { createLocalStore, useIsHydrated } from "@/hooks/create-local-store";
-
+import { api } from "@/lib/api";
 import {
-  MASTER_DATA_STORAGE_KEY,
   initialMasterData,
-  loadMasterData,
-  saveMasterData,
   type MasterData,
 } from "@/lib/master-data";
 
-const store = createLocalStore({
-  key: MASTER_DATA_STORAGE_KEY,
-  load: loadMasterData,
-  save: saveMasterData,
-  serverValue: initialMasterData,
-});
+let currentData: MasterData = initialMasterData;
+let loaded = false;
+let loading: Promise<void> | null = null;
+const listeners = new Set<(data: MasterData) => void>();
 
+function emit() {
+  for (const listener of listeners) listener(currentData);
+}
+
+async function ensureLoaded() {
+  if (loaded) return;
+  if (!loading) {
+    loading = api<MasterData>("/master-data")
+      .then((data) => {
+        currentData = data;
+        loaded = true;
+        emit();
+      })
+      .finally(() => {
+        loading = null;
+      });
+  }
+  await loading;
+}
 export function setMasterData(value: SetStateAction<MasterData>) {
-  store.set(typeof value === "function" ? value(store.get()) : value);
+  currentData =
+    typeof value === "function"
+      ? (value as (data: MasterData) => MasterData)(currentData)
+      : value;
+  emit();
+
+  void api<MasterData>("/master-data", {
+    method: "PUT",
+    body: JSON.stringify(currentData),
+  }).then((serverData) => {
+    currentData = serverData;
+    loaded = true;
+    emit();
+  }).catch((error) => {
+    console.error("Gagal menyimpan master data ke backend", error);
+  });
 }
 
 export function useMasterData() {
-  return {
-    data: store.useValue(),
-    setMasterData,
-    isHydrated: useIsHydrated(),
-  };
+  const [data, setData] = useState(currentData);
+  const [isHydrated, setHydrated] = useState(loaded);
+
+  useEffect(() => {
+    listeners.add(setData);
+    void ensureLoaded()
+      .catch((error) => console.error("Gagal memuat master data", error))
+      .finally(() => setHydrated(true));
+    return () => {
+      listeners.delete(setData);
+    };
+  }, []);
+
+  return { data, setMasterData, isHydrated };
 }

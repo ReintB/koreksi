@@ -66,9 +66,8 @@ import {
 } from "@/components/score-override-dialog";
 
 import { useMasterData } from "@/hooks/use-master-data";
-import { useScoreOverrides } from "@/hooks/use-score-overrides";
+import { useAdminSubmissions } from "@/hooks/use-submissions";
 import { csvFilename, downloadCsv, toCsv } from "@/lib/csv";
-import { dummyAdminSubmissions } from "@/lib/dummy-data";
 import { ELIPSIS, nomorHalaman } from "@/lib/paginasi";
 
 import {
@@ -110,7 +109,7 @@ const opsiStatus = daftarStatus.map((status) => ({
 
 type AdminRow = AdminSubmission & {
   skorOtomatis: number | null;
-  catatanTimpa?: string;
+  catatanTimpa?: string | null;
   ditimpa: boolean;
   terlambat: boolean;
 };
@@ -176,8 +175,8 @@ export default function AdminPage() {
   const [selected, setSelected] = useState<AdminRow | null>(null);
   const [ubahSkor, setUbahSkor] = useState<ScoreOverrideTarget | null>(null);
 
-  const overrides = useScoreOverrides();
   const { data } = useMasterData();
+  const { data: submissions } = useAdminSubmissions();
 
   // Diturunkan dari master data supaya mata kuliah atau kelas yang baru
   // ditambahkan di /admin/tugas langsung bisa dipakai menyaring di sini.
@@ -207,21 +206,18 @@ export default function AdminPage() {
     );
   }
 
-  const rows: AdminRow[] = dummyAdminSubmissions.map((submission) => {
-    const timpa = overrides[submission.id];
-
-    return {
-      ...submission,
-      skor: timpa ? timpa.skor : submission.skor,
-      skorOtomatis: submission.skor,
-      catatanTimpa: timpa?.catatan,
-      ditimpa: !!timpa,
-      terlambat: isTerlambat(
+  const rows: AdminRow[] = submissions.map((submission) => ({
+    ...submission,
+    skorOtomatis: submission.skorOtomatis ?? submission.skor,
+    catatanTimpa: submission.catatanTimpa ?? null,
+    ditimpa: submission.ditimpa,
+    terlambat:
+      submission.terlambat ??
+      isTerlambat(
         submission.dikirimPada,
         tenggatTugas(submission.mataKuliah, submission.tugasKe)
       ),
-    };
-  });
+  }));
 
   const sorted = urutkanPengumpulan(saringPengumpulan(rows, filter), sort);
 
@@ -562,6 +558,8 @@ export default function AdminPage() {
                                     tugasKe: submission.tugasKe,
                                     judulTugas: submission.judulTugas,
                                     skorOtomatis: submission.skorOtomatis,
+                                    skorManual: submission.ditimpa ? submission.skor : null,
+                                    catatanTimpa: submission.catatanTimpa,
                                   })
                                 }
                               >

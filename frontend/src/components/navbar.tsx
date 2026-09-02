@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
 
 import ModeToggle from "@/components/mode-toggle";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { logout, useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
 const mahasiswaNavigation = [
@@ -34,10 +37,16 @@ const adminNavigation = [
     href: "/admin/tugas",
     label: "Pengaturan Tugas",
   },
+  {
+    href: "/admin/pengguna",
+    label: "Pengguna",
+  },
 ];
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { authenticated, user } = useAuth();
 
   const isAdmin =
     pathname === "/admin" ||
@@ -81,9 +90,25 @@ export function Navbar() {
           })}
         </nav>
 
-        <span className="hidden shrink-0 text-xs text-muted-foreground sm:block">
-          {isAdmin ? "Admin" : "Mahasiswa"}
-        </span>
+        {authenticated && user ? (
+          <>
+            <span className="hidden max-w-44 truncate text-xs text-muted-foreground lg:block">
+              {user.email} · {user.role === "admin" ? "Admin" : "Mahasiswa"}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Keluar"
+              onClick={() => void logout().then(() => { router.push("/login"); router.refresh(); })}
+            >
+              <LogOut className="size-4" />
+            </Button>
+          </>
+        ) : (
+          <Link href="/login" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+            Masuk
+          </Link>
+        )}
         <ModeToggle />
       </div>
     </header>

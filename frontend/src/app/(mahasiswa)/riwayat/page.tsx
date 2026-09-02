@@ -25,7 +25,8 @@ import {
 } from "@/components/submission-status-badge";
 import { SubmissionDetailDialog } from "@/components/submission-detail-dialog";
 
-import { dummyRiwayatSubmissions } from "@/lib/dummy-data";
+import { useStudentSubmissions } from "@/hooks/use-submissions";
+import { useAuth } from "@/hooks/use-auth";
 import { unduhHasil } from "@/lib/unduh-hasil";
 
 import {
@@ -38,8 +39,9 @@ import { cn } from "@/lib/utils";
 
 export default function RiwayatPage() {
   const [selected, setSelected] = useState<MahasiswaSubmission | null>(null);
-
-  const empty = dummyRiwayatSubmissions.length === 0;
+  const { user } = useAuth();
+  const { data: submissions } = useStudentSubmissions(user?.student?.nim ?? null);
+  const empty = submissions.length === 0;
 
   return (
     <>
@@ -51,7 +53,7 @@ export default function RiwayatPage() {
           description="Pantau status proses dan lihat hasil koreksi tugas yang telah dikirim."
         />
 
-        <StatusSummary items={dummyRiwayatSubmissions} />
+        <StatusSummary items={submissions} />
 
         {empty ? (
           <Card>
@@ -66,7 +68,7 @@ export default function RiwayatPage() {
         ) : (
           <>
             <ul className="flex flex-col gap-3 md:hidden">
-              {dummyRiwayatSubmissions.map((submission) => {
+              {submissions.map((submission) => {
                 const clickable = canOpenSubmission(submission.status);
 
                 return (
@@ -129,7 +131,7 @@ export default function RiwayatPage() {
                   </TableHeader>
 
                   <TableBody>
-                    {dummyRiwayatSubmissions.map((submission) => {
+                    {submissions.map((submission) => {
                       const clickable = canOpenSubmission(submission.status);
 
                       return (

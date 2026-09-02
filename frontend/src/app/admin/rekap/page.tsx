@@ -31,8 +31,8 @@ import {
 } from "@/components/ui/table";
 
 import { useMasterData } from "@/hooks/use-master-data";
+import { useAdminSubmissions, useStudents } from "@/hooks/use-submissions";
 import { csvFilename, downloadCsv, toCsv } from "@/lib/csv";
-import { dummyAdminSubmissions, dummyMahasiswa } from "@/lib/dummy-data";
 import { buildRekap, rekapCounts, type RekapRow } from "@/lib/rekap";
 import { unduhHasil } from "@/lib/unduh-hasil";
 import { toneDot, toneSurface } from "@/lib/tone";
@@ -153,6 +153,9 @@ export default function AdminRekapPage() {
     data.mataKuliah[0] ??
     null;
 
+  const { data: submissions } = useAdminSubmissions();
+  const { data: mahasiswa } = useStudents(mataKuliah?.id);
+
   const tugasMataKuliah = data.tugas
     .filter((item) => item.mataKuliahId === mataKuliah?.id)
     .sort((a, b) => a.nomor - b.nomor);
@@ -164,7 +167,7 @@ export default function AdminRekapPage() {
 
   const rows =
     mataKuliah && tugas
-      ? buildRekap(dummyMahasiswa, dummyAdminSubmissions, {
+      ? buildRekap(mahasiswa, submissions, {
           mataKuliah: mataKuliah.nama,
           tugasKe: tugas.nomor,
           kelas: kelas === SEMUA_KELAS ? null : kelas,

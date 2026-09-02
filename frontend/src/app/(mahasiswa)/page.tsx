@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardList, LoaderCircle } from "lucide-react";
 import { z } from "zod";
@@ -15,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
 import { Navbar } from "@/components/navbar";
+import { api } from "@/lib/api";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,11 +38,14 @@ import {
 
 import { TenggatText } from "@/components/tenggat-text";
 import { useMasterData } from "@/hooks/use-master-data";
+import { useAuth } from "@/hooks/use-auth";
 import type { Tugas } from "@/lib/master-data";
 import { tenggatInfo } from "@/lib/tenggat";
 import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
+  nim: z.string().min(6, "Masukkan NIM yang terdaftar"),
+
   mataKuliahId: z.string().min(1, "Pilih mata kuliah terlebih dahulu"),
 
   tugasId: z.string().min(1, "Pilih tugas terlebih dahulu"),
@@ -115,6 +119,7 @@ function LinkField({
 export default function SubmitTugasPage() {
   const router = useRouter();
   const { data, isHydrated } = useMasterData();
+  const { authenticated, user, loading: authLoading } = useAuth();
 
   const {
     control,
@@ -125,6 +130,7 @@ export default function SubmitTugasPage() {
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      nim: "",
       mataKuliahId: "",
       tugasId: "",
       linkYoutube: "",
@@ -161,29 +167,35 @@ export default function SubmitTugasPage() {
       ? "Belum ada tugas"
       : "Pilih tugas";
 
-  function onSubmit(values: FormValues) {
-    const mataKuliah = data.mataKuliah.find(
-      (item) => item.id === values.mataKuliahId
-    );
+  useEffect(() => {
+    queueMicrotask(() => setValue("nim", user?.student?.nim ?? ""));
+  }, [setValue, user?.student?.nim]);
 
-    const tugas = data.tugas.find((item) => item.id === values.tugasId);
-
-    console.log({
-      ...values,
-      mataKuliah: mataKuliah?.nama,
-      tugasKe: tugas?.nomor,
-      judulTugas: tugas?.judul,
-    });
-
-    toast.success("Tugas berhasil dikirim.", {
-      description: "Pengumpulan masuk antrean dan menunggu diproses.",
-      action: {
-        label: "Lihat Riwayat",
-        onClick: () => router.push("/riwayat"),
-      },
-    });
-
-    reset();
+  async function onSubmit(values: FormValues) {
+    try {
+      await api("/submissions", {
+        method: "POST",
+        body: JSON.stringify(values),
+      });
+      toast.success("Tugas berhasil dikirim.", {
+        description: "Pengumpulan masuk antrean dan akan diproses otomatis.",
+        action: {
+          label: "Lihat Riwayat",
+          onClick: () => router.push("/riwayat"),
+        },
+      });
+      reset({
+        nim: values.nim.trim(),
+        mataKuliahId: "",
+        tugasId: "",
+        linkYoutube: "",
+        linkDrive: "",
+      });
+    } catch (error) {
+      toast.error("Tugas gagal dikirim.", {
+        description: error instanceof Error ? error.message : "Backend tidak merespons.",
+      });
+    }
   }
 
   return (
@@ -196,10 +208,41 @@ export default function SubmitTugasPage() {
           description="Pilih mata kuliah dan tugas yang akan dikumpulkan, kemudian sertakan link video pengerjaan."
         />
 
+        {!authLoading && !authenticated && (
+          <p className="mb-4 rounded-md border p-3 text-sm text-muted-foreground">
+            Silakan masuk dengan Google terlebih dahulu melalui menu Masuk.
+          </p>
+        )}
+        {!authLoading && authenticated && !user?.student && (
+          <p className="mb-4 rounded-md border p-3 text-sm text-muted-foreground">
+            Akun Google sudah login, tetapi belum dihubungkan ke NIM. Hubungi admin agar akun dapat mengirim tugas.
+          </p>
+        )}
+
         <Card>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)}>
               <FieldGroup>
+                <Field data-invalid={!!errors.nim}>
+                  <FieldLabel htmlFor="nim">NIM</FieldLabel>
+                  <Controller
+                    control={control}
+                    name="nim"
+                    render={({ field }) => (
+                      <Input
+                        id="nim"
+                        placeholder={authLoading ? "Memeriksa akun..." : "NIM belum dihubungkan admin"}
+                        readOnly
+                        {...field}
+                      />
+                    )}
+                  />
+                  <FieldDescription>
+                    NIM diambil dari akun Google yang sudah dihubungkan admin ke roster PostgreSQL.
+                  </FieldDescription>
+                  <FieldError errors={[errors.nim]} />
+                </Field>
+
                 <Field data-invalid={!!errors.mataKuliahId}>
                   <FieldLabel htmlFor="mataKuliahId">Mata Kuliah</FieldLabel>
 
@@ -341,7 +384,7 @@ export default function SubmitTugasPage() {
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={isSubmitting || !selectedTugasId}
+                  disabled={isSubmitting || !selectedTugasId || !authenticated || !user?.student}
                 >
                   {isSubmitting && (
                     <LoaderCircle className="size-4 animate-spin" />
