@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { ChevronRight, Inbox } from "lucide-react";
-import { toast } from "sonner";
 
 import { Navbar } from "@/components/navbar";
 import { PageHeader } from "@/components/page-header";
@@ -27,28 +26,18 @@ import {
 import { SubmissionDetailDialog } from "@/components/submission-detail-dialog";
 
 import { dummyRiwayatSubmissions } from "@/lib/dummy-data";
+import { unduhHasil } from "@/lib/unduh-hasil";
 
 import {
   canOpenSubmission,
   formatSubmissionDate,
   type MahasiswaSubmission,
-  type SubmissionDetailData,
 } from "@/lib/submission";
 
 import { cn } from "@/lib/utils";
 
 export default function RiwayatPage() {
   const [selected, setSelected] = useState<MahasiswaSubmission | null>(null);
-
-  function handleDownload(submission?: SubmissionDetailData) {
-    if (submission) {
-      console.log("Download hasil koreksi:", submission.id);
-    }
-
-    toast.info(
-      "File hasil koreksi akan tersedia setelah backend penyimpanan file dihubungkan."
-    );
-  }
 
   const empty = dummyRiwayatSubmissions.length === 0;
 
@@ -219,7 +208,7 @@ export default function RiwayatPage() {
       <SubmissionDetailDialog
         submission={selected}
         onClose={() => setSelected(null)}
-        onDownload={handleDownload}
+        onDownload={unduhHasil}
       />
     </>
   );

@@ -34,6 +34,7 @@ import { useMasterData } from "@/hooks/use-master-data";
 import { csvFilename, downloadCsv, toCsv } from "@/lib/csv";
 import { dummyAdminSubmissions, dummyMahasiswa } from "@/lib/dummy-data";
 import { buildRekap, rekapCounts, type RekapRow } from "@/lib/rekap";
+import { unduhHasil } from "@/lib/unduh-hasil";
 import { toneDot, toneSurface } from "@/lib/tone";
 import { cn } from "@/lib/utils";
 
@@ -237,12 +238,6 @@ export default function AdminRekapPage() {
     downloadCsv(csvFilename("rekap-pengumpulan"), toCsv(headers, baris));
 
     toast.success(`${terlihat.length} baris rekap diekspor.`);
-  }
-
-  function handleDownload() {
-    toast.info(
-      "File hasil koreksi akan tersedia setelah backend penyimpanan file dihubungkan."
-    );
   }
 
   return (
@@ -458,7 +453,7 @@ export default function AdminRekapPage() {
       <SubmissionDetailDialog
         submission={selected}
         onClose={() => setSelected(null)}
-        onDownload={handleDownload}
+        onDownload={unduhHasil}
       />
     </>
   );

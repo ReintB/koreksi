@@ -70,61 +70,43 @@ import { useScoreOverrides } from "@/hooks/use-score-overrides";
 import { csvFilename, downloadCsv, toCsv } from "@/lib/csv";
 import { dummyAdminSubmissions } from "@/lib/dummy-data";
 import { ELIPSIS, nomorHalaman } from "@/lib/paginasi";
+
+import {
+  FILTER_KOSONG,
+  SEMUA,
+  adaFilterAktif,
+  potongHalaman,
+  saringPengumpulan,
+  urutanBerikutnya,
+  urutkanPengumpulan,
+  type FilterPengumpulan,
+  type KunciUrut,
+  type Urutan,
+} from "@/lib/daftar-pengumpulan";
 import { isTerlambat } from "@/lib/tenggat";
+import { unduhHasil } from "@/lib/unduh-hasil";
 
 import {
   STATUS_META,
   canOpenSubmission,
   formatSubmissionDate,
   type AdminSubmission,
-  type SubmissionDetailData,
 } from "@/lib/submission";
 
 import { cn } from "@/lib/utils";
 
 const daftarStatus = [
-  "Semua",
+  SEMUA,
   "menunggu",
   "diproses",
   "selesai",
   "gagal",
 ] as const;
 
-type StatusFilter = (typeof daftarStatus)[number];
-
-const opsiMataKuliah = [
-  "Semua",
-  "Praktikum Alpro",
-  "Praktikum Basis Data",
-  "Praktikum Jaringan Komputer",
-].map((nama) => ({
-  value: nama,
-  label: nama === "Semua" ? "Semua Mata Kuliah" : nama,
-}));
-
-const opsiKelas = ["Semua", "A", "B", "C", "D", "E"].map((kelas) => ({
-  value: kelas,
-  label: kelas === "Semua" ? "Semua Kelas" : `Kelas ${kelas}`,
-}));
-
 const opsiStatus = daftarStatus.map((status) => ({
   value: status,
-  label: status === "Semua" ? "Semua Status" : STATUS_META[status].label,
+  label: status === SEMUA ? "Semua Status" : STATUS_META[status].label,
 }));
-
-type SortKey =
-  | "namaMahasiswa"
-  | "nim"
-  | "kelasPraktikum"
-  | "mataKuliah"
-  | "tugasKe"
-  | "dikirimPada"
-  | "skor";
-
-type SortState = {
-  key: SortKey;
-  dir: "asc" | "desc";
-};
 
 type AdminRow = AdminSubmission & {
   skorOtomatis: number | null;
@@ -135,21 +117,6 @@ type AdminRow = AdminSubmission & {
 
 const PER_PAGE = 10;
 
-function compareBy(a: AdminRow, b: AdminRow, key: SortKey) {
-  const av = a[key];
-  const bv = b[key];
-
-  if (av === null && bv === null) return 0;
-  if (av === null) return 1;
-  if (bv === null) return -1;
-
-  if (typeof av === "number" && typeof bv === "number") {
-    return av - bv;
-  }
-
-  return String(av).localeCompare(String(bv), "id");
-}
-
 function SortableHead({
   label,
   sortKey,
@@ -158,9 +125,9 @@ function SortableHead({
   className,
 }: {
   label: string;
-  sortKey: SortKey;
-  sort: SortState;
-  onSort: (key: SortKey) => void;
+  sortKey: KunciUrut;
+  sort: Urutan;
+  onSort: (key: KunciUrut) => void;
   className?: string;
 }) {
   const active = sort.key === sortKey;
@@ -198,13 +165,10 @@ function SortableHead({
 }
 
 export default function AdminPage() {
-  const [filterKelas, setFilterKelas] = useState("Semua");
-  const [filterMataKuliah, setFilterMataKuliah] = useState("Semua");
-  const [filterStatus, setFilterStatus] = useState<StatusFilter>("Semua");
-  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<FilterPengumpulan>(FILTER_KOSONG);
   const [page, setPage] = useState(1);
 
-  const [sort, setSort] = useState<SortState>({
+  const [sort, setSort] = useState<Urutan>({
     key: "dikirimPada",
     dir: "desc",
   });
@@ -214,6 +178,24 @@ export default function AdminPage() {
 
   const overrides = useScoreOverrides();
   const { data } = useMasterData();
+
+  // Diturunkan dari master data supaya mata kuliah atau kelas yang baru
+  // ditambahkan di /admin/tugas langsung bisa dipakai menyaring di sini.
+  const opsiMataKuliah = [
+    { value: SEMUA, label: "Semua Mata Kuliah" },
+    ...data.mataKuliah.map((item) => ({
+      value: item.nama,
+      label: item.nama,
+    })),
+  ];
+
+  const opsiKelas = [
+    { value: SEMUA, label: "Semua Kelas" },
+    ...data.kelasPraktikum.map((item) => ({
+      value: item.nama,
+      label: `Kelas ${item.nama}`,
+    })),
+  ];
 
   function tenggatTugas(mataKuliah: string, tugasKe: number) {
     const mk = data.mataKuliah.find((item) => item.nama === mataKuliah);
@@ -241,58 +223,30 @@ export default function AdminPage() {
     };
   });
 
-  const kata = query.trim().toLowerCase();
+  const sorted = urutkanPengumpulan(saringPengumpulan(rows, filter), sort);
 
-  const filtered = rows.filter(
-    (submission) =>
-      (filterKelas === "Semua" || submission.kelasPraktikum === filterKelas) &&
-      (filterMataKuliah === "Semua" ||
-        submission.mataKuliah === filterMataKuliah) &&
-      (filterStatus === "Semua" || submission.status === filterStatus) &&
-      (kata === "" ||
-        submission.namaMahasiswa.toLowerCase().includes(kata) ||
-        submission.nim.includes(kata))
-  );
+  const {
+    halaman,
+    totalHalaman,
+    mulai,
+    items: paged,
+  } = potongHalaman(sorted, page, PER_PAGE);
 
-  const arah = sort.dir === "asc" ? 1 : -1;
+  const filterAktif = adaFilterAktif(filter);
 
-  const sorted = [...filtered].sort((a, b) => {
-    const hasil = compareBy(a, b, sort.key);
+  /** Setiap perubahan filter mengembalikan tabel ke halaman pertama. */
+  function ubahFilter(patch: Partial<FilterPengumpulan>) {
+    setFilter((current) => ({ ...current, ...patch }));
+    setPage(1);
+  }
 
-    if (a[sort.key] === null || b[sort.key] === null) {
-      return hasil;
-    }
-
-    return hasil * arah;
-  });
-
-  const totalHalaman = Math.max(1, Math.ceil(sorted.length / PER_PAGE));
-
-  const halaman = Math.min(page, totalHalaman);
-  const mulai = (halaman - 1) * PER_PAGE;
-  const paged = sorted.slice(mulai, mulai + PER_PAGE);
-
-  const adaFilterAktif =
-    filterMataKuliah !== "Semua" ||
-    filterKelas !== "Semua" ||
-    filterStatus !== "Semua" ||
-    kata !== "";
-
-  function handleSort(key: SortKey) {
-    setSort((current) =>
-      current.key === key
-        ? { key, dir: current.dir === "asc" ? "desc" : "asc" }
-        : { key, dir: "asc" }
-    );
-
+  function handleSort(key: KunciUrut) {
+    setSort((current) => urutanBerikutnya(current, key));
     setPage(1);
   }
 
   function resetFilter() {
-    setFilterMataKuliah("Semua");
-    setFilterKelas("Semua");
-    setFilterStatus("Semua");
-    setQuery("");
+    setFilter(FILTER_KOSONG);
     setPage(1);
   }
 
@@ -334,16 +288,6 @@ export default function AdminPage() {
     toast.success(`${sorted.length} baris nilai diekspor.`);
   }
 
-  function handleDownload(submission?: SubmissionDetailData) {
-    if (submission) {
-      console.log("Download hasil koreksi:", submission.id);
-    }
-
-    toast.info(
-      "File hasil koreksi akan tersedia setelah backend penyimpanan file dihubungkan."
-    );
-  }
-
   return (
     <>
       <Navbar />
@@ -375,11 +319,8 @@ export default function AdminPage() {
 
               <InputGroupInput
                 id="cari-mahasiswa"
-                value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value);
-                  setPage(1);
-                }}
+                value={filter.query}
+                onChange={(event) => ubahFilter({ query: event.target.value })}
                 placeholder="Nama atau NIM"
               />
             </InputGroup>
@@ -388,40 +329,33 @@ export default function AdminPage() {
           <FilterSelect
             id="filter-mata-kuliah"
             label="Mata Kuliah"
-            value={filterMataKuliah}
+            value={filter.mataKuliah}
             options={opsiMataKuliah}
-            onChange={(value) => {
-              setFilterMataKuliah(value);
-              setPage(1);
-            }}
+            onChange={(value) => ubahFilter({ mataKuliah: value })}
             className="w-full sm:w-56"
           />
 
           <FilterSelect
             id="filter-kelas"
             label="Kelas Praktikum"
-            value={filterKelas}
+            value={filter.kelas}
             options={opsiKelas}
-            onChange={(value) => {
-              setFilterKelas(value);
-              setPage(1);
-            }}
+            onChange={(value) => ubahFilter({ kelas: value })}
             className="w-full sm:w-40"
           />
 
           <FilterSelect
             id="filter-status"
             label="Status"
-            value={filterStatus}
+            value={filter.status}
             options={opsiStatus}
-            onChange={(value) => {
-              setFilterStatus(value);
-              setPage(1);
-            }}
+            onChange={(value) =>
+              ubahFilter({ status: value as FilterPengumpulan["status"] })
+            }
             className="w-full sm:w-40"
           />
 
-          {adaFilterAktif && (
+          {filterAktif && (
             <Button
               variant="ghost"
               onClick={resetFilter}
@@ -509,7 +443,7 @@ export default function AdminPage() {
                           title="Tidak ada pengumpulan"
                           description="Tidak ada data yang cocok dengan pencarian atau filter yang dipilih."
                           action={
-                            adaFilterAktif ? (
+                            filterAktif ? (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -637,7 +571,7 @@ export default function AdminPage() {
 
                               <DropdownMenuItem
                                 disabled={submission.status !== "selesai"}
-                                onClick={() => handleDownload(submission)}
+                                onClick={() => unduhHasil(submission)}
                               >
                                 <Download className="size-4" />
                                 Unduh Hasil
@@ -714,7 +648,7 @@ export default function AdminPage() {
       <SubmissionDetailDialog
         submission={selected}
         onClose={() => setSelected(null)}
-        onDownload={handleDownload}
+        onDownload={unduhHasil}
       />
     </>
   );

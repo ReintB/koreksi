@@ -84,6 +84,7 @@ import {
 import { TenggatPicker } from "@/components/tenggat-picker";
 import { TenggatText } from "@/components/tenggat-text";
 import { useMasterData } from "@/hooks/use-master-data";
+import { adaDuplikat, hapusById, upsert } from "@/lib/koleksi";
 import { createMasterDataId, type Tugas } from "@/lib/master-data";
 import { tenggatFromInput, tenggatToInput } from "@/lib/tenggat";
 import { cn } from "@/lib/utils";
@@ -257,9 +258,10 @@ export default function AdminTugasPage() {
       return;
     }
 
-    const duplicate = data.mataKuliah.some(
-      (item) =>
-        item.nama.toLowerCase() === nama.toLowerCase() && item.id !== editor?.id
+    const duplicate = adaDuplikat(
+      data.mataKuliah,
+      editor?.id,
+      (item) => item.nama.toLowerCase() === nama.toLowerCase()
     );
 
     if (duplicate) {
@@ -267,29 +269,25 @@ export default function AdminTugasPage() {
       return;
     }
 
-    const id = editingId("mataKuliah");
+    const lama = editingId("mataKuliah");
+    const id = lama ?? createMasterDataId("mk");
 
-    if (id) {
-      setMasterData((current) => ({
-        ...current,
-        mataKuliah: current.mataKuliah.map((item) =>
-          item.id === id ? { ...item, nama } : item
-        ),
-      }));
+    setMasterData((current) => ({
+      ...current,
+      mataKuliah: upsert(current.mataKuliah, id, { nama }),
+    }));
 
-      toast.success("Mata kuliah berhasil diperbarui.");
-    } else {
-      const baru = createMasterDataId("mk");
-
-      setMasterData((current) => ({
-        ...current,
-        mataKuliah: [...current.mataKuliah, { id: baru, nama }],
-      }));
-
-      setActiveMataKuliahId(baru);
-
-      toast.success("Mata kuliah berhasil ditambahkan.");
+    // Mata kuliah baru langsung jadi yang terpilih. Yang diedit tidak, supaya
+    // mengedit dari daftar tidak diam-diam memindahkan pilihan asisten.
+    if (!lama) {
+      setActiveMataKuliahId(id);
     }
+
+    toast.success(
+      lama
+        ? "Mata kuliah berhasil diperbarui."
+        : "Mata kuliah berhasil ditambahkan."
+    );
 
     setEditor(null);
   }
@@ -351,11 +349,11 @@ export default function AdminTugasPage() {
       return;
     }
 
-    const duplicate = data.tugas.some(
+    const duplicate = adaDuplikat(
+      data.tugas,
+      editor?.id,
       (item) =>
-        item.mataKuliahId === tugasForm.mataKuliahId &&
-        item.nomor === nomor &&
-        item.id !== editor?.id
+        item.mataKuliahId === tugasForm.mataKuliahId && item.nomor === nomor
     );
 
     if (duplicate) {
@@ -363,45 +361,24 @@ export default function AdminTugasPage() {
       return;
     }
 
-    const id = editingId("tugas");
+    const lama = editingId("tugas");
+    const id = lama ?? createMasterDataId("tugas");
 
-    if (id) {
-      setMasterData((current) => ({
-        ...current,
-        tugas: current.tugas.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                nomor,
-                judul,
-                tenggat,
-                rubrikFileName: tugasForm.rubrikFileName,
-                rubrikText: tugasForm.rubrikText,
-              }
-            : item
-        ),
-      }));
+    setMasterData((current) => ({
+      ...current,
+      tugas: upsert(current.tugas, id, {
+        mataKuliahId: tugasForm.mataKuliahId,
+        nomor,
+        judul,
+        tenggat,
+        rubrikFileName: tugasForm.rubrikFileName,
+        rubrikText: tugasForm.rubrikText,
+      }),
+    }));
 
-      toast.success("Tugas berhasil diperbarui.");
-    } else {
-      setMasterData((current) => ({
-        ...current,
-        tugas: [
-          ...current.tugas,
-          {
-            id: createMasterDataId("tugas"),
-            mataKuliahId: tugasForm.mataKuliahId,
-            nomor,
-            judul,
-            tenggat,
-            rubrikFileName: tugasForm.rubrikFileName,
-            rubrikText: tugasForm.rubrikText,
-          },
-        ],
-      }));
-
-      toast.success("Tugas berhasil ditambahkan.");
-    }
+    toast.success(
+      lama ? "Tugas berhasil diperbarui." : "Tugas berhasil ditambahkan."
+    );
 
     setEditor(null);
   }
@@ -464,9 +441,10 @@ export default function AdminTugasPage() {
       return;
     }
 
-    const duplicate = data.kelasPraktikum.some(
-      (item) =>
-        item.nama.toLowerCase() === nama.toLowerCase() && item.id !== editor?.id
+    const duplicate = adaDuplikat(
+      data.kelasPraktikum,
+      editor?.id,
+      (item) => item.nama.toLowerCase() === nama.toLowerCase()
     );
 
     if (duplicate) {
@@ -474,28 +452,17 @@ export default function AdminTugasPage() {
       return;
     }
 
-    const id = editingId("kelas");
+    const lama = editingId("kelas");
+    const id = lama ?? createMasterDataId("kelas");
 
-    if (id) {
-      setMasterData((current) => ({
-        ...current,
-        kelasPraktikum: current.kelasPraktikum.map((item) =>
-          item.id === id ? { ...item, nama } : item
-        ),
-      }));
+    setMasterData((current) => ({
+      ...current,
+      kelasPraktikum: upsert(current.kelasPraktikum, id, { nama }),
+    }));
 
-      toast.success("Kelas berhasil diperbarui.");
-    } else {
-      setMasterData((current) => ({
-        ...current,
-        kelasPraktikum: [
-          ...current.kelasPraktikum,
-          { id: createMasterDataId("kelas"), nama },
-        ],
-      }));
-
-      toast.success("Kelas berhasil ditambahkan.");
-    }
+    toast.success(
+      lama ? "Kelas berhasil diperbarui." : "Kelas berhasil ditambahkan."
+    );
 
     setEditor(null);
   }
@@ -522,8 +489,10 @@ export default function AdminTugasPage() {
       return;
     }
 
-    const duplicate = data.angkatan.some(
-      (item) => item.tahun === tahun && item.id !== editor?.id
+    const duplicate = adaDuplikat(
+      data.angkatan,
+      editor?.id,
+      (item) => item.tahun === tahun
     );
 
     if (duplicate) {
@@ -531,28 +500,17 @@ export default function AdminTugasPage() {
       return;
     }
 
-    const id = editingId("angkatan");
+    const lama = editingId("angkatan");
+    const id = lama ?? createMasterDataId("angkatan");
 
-    if (id) {
-      setMasterData((current) => ({
-        ...current,
-        angkatan: current.angkatan.map((item) =>
-          item.id === id ? { ...item, tahun } : item
-        ),
-      }));
+    setMasterData((current) => ({
+      ...current,
+      angkatan: upsert(current.angkatan, id, { tahun }),
+    }));
 
-      toast.success("Angkatan berhasil diperbarui.");
-    } else {
-      setMasterData((current) => ({
-        ...current,
-        angkatan: [
-          ...current.angkatan,
-          { id: createMasterDataId("angkatan"), tahun },
-        ],
-      }));
-
-      toast.success("Angkatan berhasil ditambahkan.");
-    }
+    toast.success(
+      lama ? "Angkatan berhasil diperbarui." : "Angkatan berhasil ditambahkan."
+    );
 
     setEditor(null);
   }
@@ -567,29 +525,22 @@ export default function AdminTugasPage() {
         case "mataKuliah":
           return {
             ...current,
-            mataKuliah: current.mataKuliah.filter((item) => item.id !== id),
+            mataKuliah: hapusById(current.mataKuliah, id),
+            // Tugas ikut terhapus supaya tidak menggantung tanpa mata kuliah.
             tugas: current.tugas.filter((item) => item.mataKuliahId !== id),
           };
 
         case "tugas":
-          return {
-            ...current,
-            tugas: current.tugas.filter((item) => item.id !== id),
-          };
+          return { ...current, tugas: hapusById(current.tugas, id) };
 
         case "kelas":
           return {
             ...current,
-            kelasPraktikum: current.kelasPraktikum.filter(
-              (item) => item.id !== id
-            ),
+            kelasPraktikum: hapusById(current.kelasPraktikum, id),
           };
 
         case "angkatan":
-          return {
-            ...current,
-            angkatan: current.angkatan.filter((item) => item.id !== id),
-          };
+          return { ...current, angkatan: hapusById(current.angkatan, id) };
       }
     });
 
