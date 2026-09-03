@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { db } from "@/lib/db";
 
 /**
  * Penentuan peran dan penjagaan endpoint.
@@ -52,4 +53,36 @@ export async function pastikanAdmin(): Promise<Hasil> {
   }
 
   return hasil;
+}
+
+/**
+ * NIM roster yang tertaut ke sebuah akun Google.
+ *
+ * Penautan dilakukan admin, jadi akun yang belum ditautkan mengembalikan
+ * null dan otomatis tidak punya akses ke data mahasiswa mana pun.
+ */
+export async function nimTertaut(email: string) {
+  const sql = db();
+
+  const baris = await sql`
+    SELECT nim FROM app_user WHERE lower(email) = ${email.toLowerCase()}
+  `;
+
+  return (baris[0]?.nim as string | null | undefined) ?? null;
+}
+
+/**
+ * Data satu mahasiswa boleh dibaca admin, atau oleh pemilik NIM itu sendiri.
+ *
+ * Tanpa penjagaan ini siapa pun yang sudah masuk bisa membaca profil
+ * mahasiswa lain hanya dengan menebak NIM, yang berurutan dan mudah ditebak.
+ */
+export async function pastikanAksesMahasiswa(nim: string): Promise<Hasil> {
+  const hasil = await pastikanMasuk();
+
+  if (!hasil.ok) return hasil;
+  if (peran(hasil.email) === "admin") return hasil;
+  if ((await nimTertaut(hasil.email)) === nim) return hasil;
+
+  return tolak(403, "Anda hanya boleh melihat data diri sendiri.");
 }
