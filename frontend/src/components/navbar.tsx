@@ -48,19 +48,33 @@ export function Navbar() {
   const router = useRouter();
   const { authenticated, user } = useAuth();
 
-  const isAdmin =
+  // Dua hal berbeda yang sebelumnya tertukar: `diAreaAdmin` soal halaman yang
+  // sedang dibuka, `admin` soal hak akses akunnya.
+  const diAreaAdmin =
     pathname === "/admin" ||
     pathname.startsWith("/admin/");
 
-  const navigation = isAdmin
-    ? adminNavigation
-    : mahasiswaNavigation;
+  const admin = user?.role === "admin";
+
+  // Menu mengikuti area yang sedang dibuka, lalu admin mendapat satu tautan
+  // tambahan untuk berpindah area. Tanpa ini admin yang berada di halaman
+  // mahasiswa tidak punya jalan ke /admin selain mengetik URL sendiri.
+  const navigation = [
+    ...(diAreaAdmin ? adminNavigation : mahasiswaNavigation),
+    ...(admin
+      ? [
+          diAreaAdmin
+            ? { href: "/", label: "Area Mahasiswa" }
+            : { href: "/admin", label: "Area Admin" },
+        ]
+      : []),
+  ];
 
   return (
     <header className="border-b bg-background">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-6 px-4">
         <Link
-          href={isAdmin ? "/admin" : "/"}
+          href={diAreaAdmin ? "/admin" : "/"}
           className="shrink-0 font-semibold"
         >
           Koreksi Tugas
