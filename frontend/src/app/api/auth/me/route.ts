@@ -1,14 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
-
-/** Email yang diperlakukan sebagai admin, dipisah koma bila lebih dari satu. */
-function daftarAdmin() {
-  return (process.env.ADMIN_EMAIL ?? "")
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
-}
+import { peran } from "@/lib/otorisasi";
 
 export async function GET() {
   const session = await auth();
@@ -25,15 +18,16 @@ export async function GET() {
       email,
       name: session.user?.name ?? email,
       avatarUrl: session.user?.image ?? null,
-      role: daftarAdmin().includes(email.toLowerCase()) ? "admin" : "user",
+      role: peran(email),
       active: true,
       // Tanpa database, jejak login tidak tersimpan di mana pun. Tiga nilai
-      // berikut hanya melengkapi bentuk AuthUser sampai FastAPI mengambil alih.
+      // berikut hanya melengkapi bentuk AuthUser sampai tabel app_user
+      // mengambil alih.
       loginCount: 0,
       lastLogin: null,
       createdAt: null,
-      // Roster NIM ada di PostgreSQL milik backend, jadi relasi mahasiswa
-      // belum bisa diisi. Akibatnya halaman kirim tugas tetap terkunci.
+      // Roster NIM ada di database, tetapi penautan akun ke NIM belum
+      // dikerjakan, jadi relasi mahasiswa masih kosong.
       student: null,
     },
   });
