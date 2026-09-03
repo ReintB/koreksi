@@ -43,16 +43,9 @@ CREATE TABLE IF NOT EXISTS mahasiswa (
   nim      text NOT NULL UNIQUE,
   nama     text NOT NULL,
   angkatan text NOT NULL,
-  email    text
-);
-
--- Kelas praktikum berbeda per mata kuliah, sesuai StudentProfile.kelas
--- yang berbentuk Record<mataKuliahId, kelas> di frontend.
-CREATE TABLE IF NOT EXISTS mahasiswa_kelas (
-  nim            text NOT NULL REFERENCES mahasiswa(nim) ON DELETE CASCADE,
-  mata_kuliah_id text NOT NULL REFERENCES mata_kuliah(id) ON DELETE CASCADE,
-  kelas          text NOT NULL,
-  PRIMARY KEY (nim, mata_kuliah_id)
+  email    text,
+  -- Satu kelas praktikum berlaku untuk seluruh mata kuliah yang diambil.
+  kelas    text
 );
 
 -- ---------- akun google ----------
@@ -126,3 +119,13 @@ ALTER TABLE mata_kuliah ADD COLUMN IF NOT EXISTS kode text;
 -- index, bukan constraint, karena hanya index yang mendukung IF NOT EXISTS.
 CREATE UNIQUE INDEX IF NOT EXISTS submission_nim_tugas_idx
   ON submission (nim, tugas_id);
+
+-- ---------- kelas praktikum menjadi tunggal ----------
+
+-- Semula kelas disimpan per mata kuliah pada tabel mahasiswa_kelas. Ternyata
+-- satu mahasiswa hanya punya satu kelas praktikum yang berlaku untuk seluruh
+-- mata kuliah, sehingga tabel itu tidak diperlukan. Dua pernyataan berikut
+-- merapikan database yang terlanjur memakai bentuk lama; isinya dipindahkan
+-- lebih dahulu ke mahasiswa.kelas sebelum tabel lamanya dibuang.
+ALTER TABLE mahasiswa ADD COLUMN IF NOT EXISTS kelas text;
+DROP TABLE IF EXISTS mahasiswa_kelas;

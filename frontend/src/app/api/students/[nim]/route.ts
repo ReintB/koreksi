@@ -4,12 +4,12 @@ import { db } from "@/lib/db";
 import { pastikanAksesMahasiswa } from "@/lib/otorisasi";
 
 /**
- * Profil satu mahasiswa beserta kelas praktikumnya per mata kuliah.
+ * Profil satu mahasiswa.
  *
  * Mengembalikan null dengan status 200, bukan 404, ketika NIM tidak ada.
- * Halaman profil memanggil endpoint ini dengan NIM penampung saat akun
- * belum ditautkan admin, dan 404 akan menjadikannya pesan galat padahal
- * keadaan itu normal.
+ * Halaman profil memanggil endpoint ini dengan NIM penampung saat akun belum
+ * ditautkan admin, dan 404 akan menjadikannya pesan galat padahal keadaan itu
+ * normal.
  */
 export async function GET(
   _request: Request,
@@ -22,14 +22,14 @@ export async function GET(
 
   const sql = db();
 
-  const [mahasiswa, kelas] = await Promise.all([
-    sql`SELECT id, nim, nama, angkatan, email FROM mahasiswa WHERE nim = ${nim}`,
-    sql`SELECT mata_kuliah_id, kelas FROM mahasiswa_kelas WHERE nim = ${nim}`,
-  ]);
+  const baris = await sql`
+    SELECT id, nim, nama, angkatan, email, kelas
+      FROM mahasiswa WHERE nim = ${nim}
+  `;
 
-  if (mahasiswa.length === 0) return NextResponse.json(null);
+  if (baris.length === 0) return NextResponse.json(null);
 
-  const b = mahasiswa[0];
+  const b = baris[0];
 
   return NextResponse.json({
     id: b.id,
@@ -37,8 +37,6 @@ export async function GET(
     nim: b.nim,
     angkatan: b.angkatan,
     email: b.email ?? null,
-    kelas: Object.fromEntries(
-      kelas.map((k) => [k.mata_kuliah_id as string, k.kelas as string])
-    ),
+    kelas: (b.kelas as string | null) ?? null,
   });
 }

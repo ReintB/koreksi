@@ -34,38 +34,30 @@ const skemaKirim = z.object({
 
 /**
  * Membaca pengumpulan beserta identitas pengirim, tugas, dan evaluasinya.
- *
- * Kelas praktikum diambil lewat LEFT JOIN karena mahasiswa bisa punya
- * pengumpulan pada mata kuliah yang kelasnya belum ditetapkan; INNER JOIN akan
- * membuat barisnya hilang diam-diam dari tabel admin.
  */
 async function bacaPengumpulan(nim?: string) {
   const sql = db();
 
   const baris = nim
     ? await sql`
-        SELECT s.*, m.nama AS nama_mahasiswa, m.angkatan, mk.nama AS mata_kuliah,
-               t.nomor AS tugas_ke, t.judul AS judul_tugas, t.tenggat, t.rubrik_text,
-               kls.kelas
+        SELECT s.*, m.nama AS nama_mahasiswa, m.angkatan, m.kelas,
+               mk.nama AS mata_kuliah,
+               t.nomor AS tugas_ke, t.judul AS judul_tugas, t.tenggat, t.rubrik_text
           FROM submission s
           JOIN mahasiswa m ON m.nim = s.nim
           JOIN mata_kuliah mk ON mk.id = s.mata_kuliah_id
           JOIN tugas t ON t.id = s.tugas_id
-          LEFT JOIN mahasiswa_kelas kls
-            ON kls.nim = s.nim AND kls.mata_kuliah_id = s.mata_kuliah_id
          WHERE s.nim = ${nim}
          ORDER BY s.dikirim_pada DESC
       `
     : await sql`
-        SELECT s.*, m.nama AS nama_mahasiswa, m.angkatan, mk.nama AS mata_kuliah,
-               t.nomor AS tugas_ke, t.judul AS judul_tugas, t.tenggat, t.rubrik_text,
-               kls.kelas
+        SELECT s.*, m.nama AS nama_mahasiswa, m.angkatan, m.kelas,
+               mk.nama AS mata_kuliah,
+               t.nomor AS tugas_ke, t.judul AS judul_tugas, t.tenggat, t.rubrik_text
           FROM submission s
           JOIN mahasiswa m ON m.nim = s.nim
           JOIN mata_kuliah mk ON mk.id = s.mata_kuliah_id
           JOIN tugas t ON t.id = s.tugas_id
-          LEFT JOIN mahasiswa_kelas kls
-            ON kls.nim = s.nim AND kls.mata_kuliah_id = s.mata_kuliah_id
          ORDER BY s.dikirim_pada DESC
       `;
 

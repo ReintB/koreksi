@@ -33,9 +33,8 @@ export function useStudentSubmissions(nim: string | null) {
   return useApiData<MahasiswaSubmission[]>(path, [], 4000);
 }
 
-export function useStudents(courseId?: string) {
-  const suffix = courseId ? `?course_id=${encodeURIComponent(courseId)}` : "";
-  return useApiData<Mahasiswa[]>(`/students${suffix}`, [], 10000);
+export function useStudents() {
+  return useApiData<Mahasiswa[]>("/students", [], 10000);
 }
 
 export type StudentProfile = {
@@ -44,7 +43,8 @@ export type StudentProfile = {
   nim: string;
   angkatan: string;
   email?: string | null;
-  kelas: Record<string, string>;
+  /** Satu kelas praktikum untuk seluruh mata kuliah; null bila belum ditetapkan. */
+  kelas: string | null;
 };
 
 export function useStudentProfile(nim: string | null) {

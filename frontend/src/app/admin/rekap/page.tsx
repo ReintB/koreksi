@@ -155,7 +155,7 @@ export default function AdminRekapPage() {
     null;
 
   const { data: submissions } = useAdminSubmissions();
-  const { data: mahasiswa } = useStudents(mataKuliah?.id);
+  const { data: mahasiswa } = useStudents();
 
   const tugasMataKuliah = data.tugas
     .filter((item) => item.mataKuliahId === mataKuliah?.id)

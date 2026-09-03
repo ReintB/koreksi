@@ -11,7 +11,7 @@ export default function ProfilPage() {
   const { user, loading: authLoading } = useAuth();
   const { data: profile, loading } = useStudentProfile(user?.student?.nim ?? null);
   const kelas = profile
-    ? [...new Set(Object.values(profile.kelas).filter((value) => value !== "-"))].join(", ") || "Belum ditetapkan"
+    ? profile.kelas ?? "Belum ditetapkan"
     : "Belum tersedia";
 
   const fields = [

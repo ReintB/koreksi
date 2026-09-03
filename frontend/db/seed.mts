@@ -52,18 +52,13 @@ for (const item of initialMasterData.tugas) {
 // ---------- roster ----------
 
 for (const item of dummyMahasiswa) {
-  await sql`INSERT INTO mahasiswa (id, nim, nama, angkatan)
-            VALUES (${item.id}, ${item.nim}, ${item.nama}, ${item.angkatan})
-            ON CONFLICT (nim) DO UPDATE SET nama = EXCLUDED.nama, angkatan = EXCLUDED.angkatan`;
-
-  // Data contoh hanya menyimpan satu kelas per mahasiswa, jadi kelas yang
-  // sama dipakai untuk semua mata kuliah. Strukturnya tetap per mata kuliah
-  // supaya nanti bisa berbeda tanpa mengubah skema.
-  for (const mk of initialMasterData.mataKuliah) {
-    await sql`INSERT INTO mahasiswa_kelas (nim, mata_kuliah_id, kelas)
-              VALUES (${item.nim}, ${mk.id}, ${item.kelasPraktikum})
-              ON CONFLICT (nim, mata_kuliah_id) DO UPDATE SET kelas = EXCLUDED.kelas`;
-  }
+  await sql`INSERT INTO mahasiswa (id, nim, nama, angkatan, kelas)
+            VALUES (${item.id}, ${item.nim}, ${item.nama}, ${item.angkatan},
+                    ${item.kelasPraktikum})
+            ON CONFLICT (nim) DO UPDATE SET
+              nama = EXCLUDED.nama,
+              angkatan = EXCLUDED.angkatan,
+              kelas = EXCLUDED.kelas`;
 }
 
 // ---------- pengumpulan ----------
@@ -146,7 +141,7 @@ const hitung = async (tabel: string) => {
 console.log("Seed selesai:");
 for (const tabel of [
   "mata_kuliah", "tugas", "kelas_praktikum", "angkatan",
-  "mahasiswa", "mahasiswa_kelas", "submission", "evaluasi",
+  "mahasiswa", "submission", "evaluasi",
 ]) {
   console.log(`  ${String(await hitung(tabel)).padStart(4)}  ${tabel}`);
 }

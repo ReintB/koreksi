@@ -28,7 +28,6 @@ const sql = neon(url);
 const tabel = [
   "evaluasi",
   "submission",
-  "mahasiswa_kelas",
   "app_user",
   "mahasiswa",
   "tugas",
