@@ -12,9 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api } from "@/lib/api";
-import type { AuthUser } from "@/hooks/use-auth";
+import { useAuth, type AuthUser } from "@/hooks/use-auth";
 
 export default function AdminPenggunaPage() {
+  // Dipakai untuk mengunci tombol pada baris diri sendiri: admin yang
+  // menurunkan perannya sendiri akan terkunci di luar halaman ini, dan tidak
+  // ada yang tersisa untuk mengembalikannya.
+  const { user: saya } = useAuth();
   const [users, setUsers] = useState<AuthUser[]>([]);
   const [nimDraft, setNimDraft] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -125,7 +129,7 @@ export default function AdminPenggunaPage() {
                             size="sm"
                             variant="outline"
                             onClick={() => void patchUser(user, { role: user.role === "admin" ? "user" : "admin" })}
-                            disabled={user.email.toLowerCase() === "rofiqcp@gmail.com"}
+                            disabled={user.email.toLowerCase() === saya?.email.toLowerCase()}
                           >
                             {user.role === "admin" ? "Jadikan User" : "Jadikan Admin"}
                           </Button>
@@ -133,7 +137,7 @@ export default function AdminPenggunaPage() {
                             size="sm"
                             variant="outline"
                             onClick={() => void patchUser(user, { active: !user.active })}
-                            disabled={user.email.toLowerCase() === "rofiqcp@gmail.com"}
+                            disabled={user.email.toLowerCase() === saya?.email.toLowerCase()}
                           >
                             {user.active ? "Nonaktifkan" : "Aktifkan"}
                           </Button>

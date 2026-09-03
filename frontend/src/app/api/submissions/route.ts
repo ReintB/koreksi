@@ -157,7 +157,7 @@ export async function POST(request: Request) {
 
   // NIM datang dari payload, jadi tanpa pemeriksaan ini siapa pun yang sudah
   // masuk bisa mengirim tugas atas nama mahasiswa lain.
-  if (peran(sesi.email) !== "admin") {
+  if ((await peran(sesi.email)) !== "admin") {
     const milik = await nimTertaut(sesi.email);
 
     if (milik !== data.nim) {

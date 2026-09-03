@@ -4,10 +4,10 @@ import { db } from "@/lib/db";
 /**
  * Penentuan peran dan penjagaan endpoint.
  *
- * Selama tabel app_user belum menjadi sumber peran, admin ditentukan oleh
- * environment ADMIN_EMAIL. Logikanya ditaruh di satu tempat supaya
- * /api/auth/me dan setiap endpoint yang dijaga tidak menyimpulkan peran
- * dengan cara yang berbeda.
+ * Peran tersimpan di tabel app_user, tetapi ADMIN_EMAIL tetap diperlakukan
+ * sebagai admin tanpa syarat. Tanpa jalan masuk itu, database yang masih
+ * kosong tidak punya satu pun admin — dan tidak ada yang bisa mengangkat
+ * admin pertama.
  */
 export type Peran = "user" | "admin";
 
@@ -18,8 +18,32 @@ function daftarAdmin() {
     .filter(Boolean);
 }
 
-export function peran(email: string): Peran {
-  return daftarAdmin().includes(email.toLowerCase()) ? "admin" : "user";
+export function adminBawaan(email: string) {
+  return daftarAdmin().includes(email.toLowerCase());
+}
+
+/** Satu baris app_user, atau null bila akunnya belum pernah masuk. */
+export async function akun(email: string) {
+  const sql = db();
+
+  const baris = await sql`
+    SELECT id, email, name, avatar_url, role, active, login_count,
+           last_login, created_at, nim
+      FROM app_user WHERE lower(email) = ${email.toLowerCase()}
+  `;
+
+  return baris[0] ?? null;
+}
+
+export async function peran(email: string): Promise<Peran> {
+  if (adminBawaan(email)) return "admin";
+
+  return (await akun(email))?.role === "admin" ? "admin" : "user";
+}
+
+/** NIM roster yang tertaut ke sebuah akun Google, null bila belum ditautkan. */
+export async function nimTertaut(email: string) {
+  return ((await akun(email))?.nim as string | null | undefined) ?? null;
 }
 
 type Hasil =
@@ -33,12 +57,20 @@ function tolak(status: number, pesan: string): Hasil {
   };
 }
 
-/** Endpoint yang menuntut pemanggilnya sudah masuk. */
+/** Endpoint yang menuntut pemanggilnya sudah masuk dan akunnya aktif. */
 export async function pastikanMasuk(): Promise<Hasil> {
   const sesi = await auth();
   const email = sesi?.user?.email;
 
   if (!email) return tolak(401, "Silakan masuk terlebih dahulu.");
+
+  // Akun yang dinonaktifkan admin masih memegang cookie sesi yang sah, jadi
+  // penonaktifan hanya berarti bila diperiksa di sini.
+  const baris = await akun(email);
+
+  if (baris && baris.active === false && !adminBawaan(email)) {
+    return tolak(403, "Akun Anda dinonaktifkan. Hubungi admin.");
+  }
 
   return { ok: true, email };
 }
@@ -48,27 +80,11 @@ export async function pastikanAdmin(): Promise<Hasil> {
   const hasil = await pastikanMasuk();
 
   if (!hasil.ok) return hasil;
-  if (peran(hasil.email) !== "admin") {
+  if ((await peran(hasil.email)) !== "admin") {
     return tolak(403, "Hanya admin yang boleh melakukan ini.");
   }
 
   return hasil;
-}
-
-/**
- * NIM roster yang tertaut ke sebuah akun Google.
- *
- * Penautan dilakukan admin, jadi akun yang belum ditautkan mengembalikan
- * null dan otomatis tidak punya akses ke data mahasiswa mana pun.
- */
-export async function nimTertaut(email: string) {
-  const sql = db();
-
-  const baris = await sql`
-    SELECT nim FROM app_user WHERE lower(email) = ${email.toLowerCase()}
-  `;
-
-  return (baris[0]?.nim as string | null | undefined) ?? null;
 }
 
 /**
@@ -81,7 +97,7 @@ export async function pastikanAksesMahasiswa(nim: string): Promise<Hasil> {
   const hasil = await pastikanMasuk();
 
   if (!hasil.ok) return hasil;
-  if (peran(hasil.email) === "admin") return hasil;
+  if ((await peran(hasil.email)) === "admin") return hasil;
   if ((await nimTertaut(hasil.email)) === nim) return hasil;
 
   return tolak(403, "Anda hanya boleh melihat data diri sendiri.");
