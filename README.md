@@ -98,7 +98,33 @@ curl http://127.0.0.1:9101/api/health
 curl http://127.0.0.1:9100/api/health
 ```
 
-Frontend meneruskan `/api/*` ke backend internal `127.0.0.1:9101`, sehingga backend tidak perlu dipublikasikan langsung oleh Cloudflare.
+Frontend meneruskan `/api/*` ke backend internal `127.0.0.1:9101`, sehingga backend tidak perlu dipublikasikan langsung oleh Cloudflare. Alamat tujuan dibaca dari environment `BACKEND_URL`; bila dikosongkan, nilainya tetap `http://127.0.0.1:9101` seperti di atas.
+
+## Deployment Vercel
+
+Selain server sendiri, frontend juga dideploy ke <https://koreksiotomasi.vercel.app> sebagai lingkungan uji.
+
+Karena aplikasi Next.js berada di `frontend/`, **Root Directory** proyek Vercel harus diisi `frontend`. Tanpa itu build gagal dalam hitungan detik karena `package.json` tidak ditemukan di root repository.
+
+Environment variable yang perlu diisi di Vercel:
+
+| Variabel | Keterangan |
+| --- | --- |
+| `BACKEND_URL` | Alamat publik backend. Wajib diisi di Vercel: default `127.0.0.1` adalah alamat privat dan ditolak dengan `DNS_HOSTNAME_RESOLVED_PRIVATE`. |
+| `AUTH_GOOGLE_ID` | Client ID OAuth, untuk auth sementara di bawah |
+| `AUTH_GOOGLE_SECRET` | Client secret OAuth, diawali `GOCSPX-` |
+| `AUTH_SECRET` | Kunci penandatangan cookie sesi |
+| `ADMIN_EMAIL` | Email yang diberi role admin, pisahkan dengan koma |
+
+Daftar lengkap beserta cara mengisinya ada di `frontend/.env.example`. Perubahan environment variable baru berlaku setelah **Redeploy**.
+
+### Auth sementara
+
+Selama backend FastAPI belum tersedia di repository ini, endpoint `/api/auth/*` dilayani Next.js memakai next-auth, yaitu `frontend/src/auth.ts` dan `frontend/src/app/api/auth/`. URL dan bentuk JSON-nya sengaja disamakan dengan rancangan backend. Karena tidak ada database, role diambil dari `ADMIN_EMAIL` dan relasi mahasiswa dibiarkan kosong, sehingga halaman kirim tugas tetap terkunci.
+
+Rewrite `/api/*` memakai bentuk `fallback` supaya dijalankan setelah dynamic route. Tanpa itu `/api/auth/callback/google` yang hanya dilayani catch-all `[...nextauth]` akan lebih dulu diproksikan ke backend dan login gagal.
+
+**Bersifat sementara.** Begitu backend tersedia, hapus `frontend/src/auth.ts` beserta `frontend/src/app/api/auth/`, lalu buang `next-auth` dari `frontend/package.json`. Rewrite `/api/*` otomatis mengambil alih tanpa perlu mengubah komponen mana pun.
 
 ## Development
 
