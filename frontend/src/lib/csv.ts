@@ -74,6 +74,61 @@ export function downloadCsv(
 }
 
 /** Nama berkas dengan tanggal lokal, mis. nilai-praktikum-2026-08-25.csv */
+/**
+ * Membaca teks CSV menjadi larik baris berisi larik kolom.
+ *
+ * Menangani kolom berkutip dua beserta koma dan kutip ganda di dalamnya,
+ * karena nama orang kadang memuat koma dan berkas dari spreadsheet akan
+ * mengutipnya. Tanda BOM yang biasa disisipkan Excel ikut dibuang; tanpa itu
+ * nama kolom pertama tidak akan pernah cocok saat dicari.
+ */
+export function parseCsv(teks: string): string[][] {
+  const bersih = teks.replace(/^﻿/, "");
+  const hasil: string[][] = [];
+
+  let kolom: string[] = [];
+  let nilai = "";
+  let dalamKutip = false;
+
+  for (let i = 0; i < bersih.length; i += 1) {
+    const huruf = bersih[i];
+
+    if (dalamKutip) {
+      if (huruf !== '"') {
+        nilai += huruf;
+      } else if (bersih[i + 1] === '"') {
+        nilai += '"';
+        i += 1;
+      } else {
+        dalamKutip = false;
+      }
+      continue;
+    }
+
+    if (huruf === '"') {
+      dalamKutip = true;
+    } else if (huruf === CSV_DELIMITER) {
+      kolom.push(nilai);
+      nilai = "";
+    } else if (huruf === "\n") {
+      kolom.push(nilai);
+      hasil.push(kolom);
+      kolom = [];
+      nilai = "";
+    } else if (huruf !== "\r") {
+      nilai += huruf;
+    }
+  }
+
+  if (nilai !== "" || kolom.length > 0) {
+    kolom.push(nilai);
+    hasil.push(kolom);
+  }
+
+  // Baris kosong di ujung berkas lazim dan bukan data.
+  return hasil.filter((baris) => baris.some((sel) => sel.trim() !== ""));
+}
+
 export function csvFilename(prefix: string, now = new Date()) {
   const pad = (n: number) => String(n).padStart(2, "0");
 

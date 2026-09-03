@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Pencil, Plus, RefreshCw, Trash2, Users } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Pencil, Plus, RefreshCw, Trash2, Upload, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/common/empty-state";
@@ -40,10 +40,42 @@ import {
 import { useMasterData } from "@/hooks/use-master-data";
 import type { Mahasiswa } from "@/hooks/use-submissions";
 import { api } from "@/lib/api";
+import { parseCsv } from "@/lib/csv";
 
 const KOSONG = { nim: "", nama: "", kelas: "", angkatan: "" };
 
 type Editor = { mode: "tambah" } | { mode: "ubah"; nim: string } | null;
+
+type BarisImpor = {
+  nim: string;
+  nama: string;
+  angkatan: string;
+  kelas: string | null;
+};
+
+type Pratinjau = {
+  berkas: string;
+  siap: BarisImpor[];
+  masalah: string[];
+};
+
+/**
+ * Mencari indeks kolom berdasarkan nama di baris header.
+ *
+ * Berkas dari kampus memakai judul yang tidak seragam ("Kelas Praktik",
+ * "Kelas Praktikum", "Kelas"), jadi pencocokannya memakai awalan dan
+ * mengabaikan besar kecil huruf alih-alih menuntut judul yang persis.
+ */
+function cariKolom(header: string[], ...kandidat: string[]) {
+  const bersih = header.map((judul) => judul.trim().toLowerCase());
+
+  for (const nama of kandidat) {
+    const indeks = bersih.findIndex((judul) => judul.startsWith(nama));
+    if (indeks !== -1) return indeks;
+  }
+
+  return -1;
+}
 
 export default function AdminMahasiswaPage() {
   const { data: master } = useMasterData();
@@ -55,6 +87,9 @@ export default function AdminMahasiswaPage() {
   const [form, setForm] = useState(KOSONG);
   const [menyimpan, setMenyimpan] = useState(false);
   const [akanDikeluarkan, setAkanDikeluarkan] = useState<Mahasiswa | null>(null);
+  const [pratinjau, setPratinjau] = useState<Pratinjau | null>(null);
+  const [mengimpor, setMengimpor] = useState(false);
+  const berkasRef = useRef<HTMLInputElement>(null);
 
   const muat = useCallback(async () => {
     try {
@@ -150,6 +185,92 @@ export default function AdminMahasiswaPage() {
     }
   }
 
+  async function bacaBerkas(berkas: File) {
+    const baris = parseCsv(await berkas.text());
+
+    if (baris.length < 2) {
+      toast.error("Berkas tidak berisi data.");
+      return;
+    }
+
+    const header = baris[0];
+    const kolom = {
+      nim: cariKolom(header, "nim"),
+      nama: cariKolom(header, "nama"),
+      angkatan: cariKolom(header, "angkatan"),
+      kelas: cariKolom(header, "kelas"),
+    };
+
+    if (kolom.nim === -1 || kolom.nama === -1 || kolom.angkatan === -1) {
+      toast.error("Kolom NIM, Nama, dan Angkatan wajib ada di baris pertama.");
+      return;
+    }
+
+    const siap: BarisImpor[] = [];
+    const masalah: string[] = [];
+
+    baris.slice(1).forEach((isi, urutan) => {
+      const ambil = (indeks: number) =>
+        indeks === -1 ? "" : (isi[indeks] ?? "").trim();
+
+      const nim = ambil(kolom.nim);
+      const nama = ambil(kolom.nama);
+      const angkatan = ambil(kolom.angkatan);
+
+      // Nomor baris mengikuti berkas aslinya, termasuk baris header, supaya
+      // yang bermasalah bisa langsung dibuka di spreadsheet.
+      if (!nim || !nama || !angkatan) {
+        masalah.push(
+          `Baris ${urutan + 2}: ${[
+            !nim && "NIM",
+            !nama && "nama",
+            !angkatan && "angkatan",
+          ]
+            .filter(Boolean)
+            .join(", ")} kosong`
+        );
+        return;
+      }
+
+      siap.push({ nim, nama, angkatan, kelas: ambil(kolom.kelas) || null });
+    });
+
+    setPratinjau({ berkas: berkas.name, siap, masalah });
+  }
+
+  async function jalankanImpor() {
+    if (!pratinjau) return;
+
+    try {
+      setMengimpor(true);
+
+      const hasil = await api<{
+        total: number;
+        baru: number;
+        diperbarui: number;
+        duplikatDalamBerkas: number;
+      }>("/students/impor", {
+        method: "POST",
+        body: JSON.stringify({ mahasiswa: pratinjau.siap }),
+      });
+
+      toast.success(`${hasil.total} mahasiswa diimpor.`, {
+        description: `${hasil.baru} baru, ${hasil.diperbarui} diperbarui${
+          hasil.duplikatDalamBerkas > 0
+            ? `, ${hasil.duplikatDalamBerkas} baris berulang diabaikan`
+            : ""
+        }.`,
+      });
+
+      setPratinjau(null);
+      await muat();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Impor gagal");
+    } finally {
+      setMengimpor(false);
+    }
+  }
+
   const bolehSimpan =
     form.nama.trim().length >= 3 &&
     form.angkatan.trim() !== "" &&
@@ -172,6 +293,28 @@ export default function AdminMahasiswaPage() {
               >
                 <RefreshCw className="size-4" />
                 Muat Ulang
+              </Button>
+
+              <input
+                ref={berkasRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(event) => {
+                  const berkas = event.target.files?.[0];
+                  if (berkas) void bacaBerkas(berkas);
+                  // Dikosongkan supaya memilih berkas yang sama dua kali
+                  // berturut-turut tetap memicu onChange.
+                  event.target.value = "";
+                }}
+              />
+
+              <Button
+                variant="outline"
+                onClick={() => berkasRef.current?.click()}
+              >
+                <Upload className="size-4" />
+                Impor CSV
               </Button>
 
               <Button onClick={bukaTambah}>
@@ -383,6 +526,91 @@ export default function AdminMahasiswaPage() {
               disabled={menyimpan || !bolehSimpan}
             >
               {menyimpan ? "Menyimpan..." : "Simpan"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={pratinjau !== null}
+        onOpenChange={(open) => {
+          if (!open && !mengimpor) setPratinjau(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogTitle className="text-lg font-semibold">
+            Pratinjau Impor
+          </DialogTitle>
+
+          <p className="mt-1 truncate text-sm text-muted-foreground">
+            {pratinjau?.berkas}
+          </p>
+
+          <div className="mt-5 space-y-4">
+            <div className="rounded-md border px-4 py-3">
+              <p className="text-2xl font-semibold tnum">
+                {pratinjau?.siap.length ?? 0}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                baris siap diimpor. NIM yang sudah ada di roster akan
+                diperbarui, bukan diduplikasi.
+              </p>
+            </div>
+
+            {pratinjau && pratinjau.siap.length > 0 && (
+              <div className="rounded-md border">
+                <p className="border-b px-4 py-2 text-xs text-muted-foreground">
+                  Tiga baris pertama
+                </p>
+                <ul className="divide-y text-sm">
+                  {pratinjau.siap.slice(0, 3).map((item) => (
+                    <li key={item.nim} className="px-4 py-2">
+                      <span className="tnum text-muted-foreground">
+                        {item.nim}
+                      </span>{" "}
+                      {item.nama}
+                      <span className="text-muted-foreground">
+                        {" "}
+                        &middot; {item.kelas ?? "tanpa kelas"} &middot;{" "}
+                        {item.angkatan}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {pratinjau && pratinjau.masalah.length > 0 && (
+              <div className="rounded-md border border-destructive/40 px-4 py-3">
+                <p className="text-sm font-medium">
+                  {pratinjau.masalah.length} baris dilewati
+                </p>
+                <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                  {pratinjau.masalah.slice(0, 5).map((pesan) => (
+                    <li key={pesan}>{pesan}</li>
+                  ))}
+                  {pratinjau.masalah.length > 5 && (
+                    <li>dan {pratinjau.masalah.length - 5} lainnya</li>
+                  )}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-6 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setPratinjau(null)}
+              disabled={mengimpor}
+            >
+              Batal
+            </Button>
+
+            <Button
+              onClick={() => void jalankanImpor()}
+              disabled={mengimpor || (pratinjau?.siap.length ?? 0) === 0}
+            >
+              {mengimpor ? "Mengimpor..." : "Impor"}
             </Button>
           </div>
         </DialogContent>

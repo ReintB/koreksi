@@ -7,7 +7,7 @@
  */
 import assert from "node:assert/strict";
 
-import { escapeCsvField, toCsv } from "./csv.ts";
+import { escapeCsvField, parseCsv, toCsv } from "./csv.ts";
 
 // Nilai biasa tidak dikutip.
 assert.equal(escapeCsvField("Budi Santoso"), "Budi Santoso");
@@ -54,5 +54,44 @@ assert.ok(csv.startsWith("﻿"));
 
 // Baris baru di dalam sel tidak boleh memecah rekaman.
 assert.equal(tanpaBom.split("\r\n").length, 2);
+
+/* ------------------------------------------------------------------
+   parseCsv
+------------------------------------------------------------------ */
+
+assert.deepEqual(
+  parseCsv(`a,b
+1,2
+`),
+  [
+    ["a", "b"],
+    ["1", "2"],
+  ],
+  "baris dan kolom terbaca apa adanya"
+);
+
+// Nama orang kadang memuat koma, dan spreadsheet akan mengutipnya.
+assert.equal(
+  parseCsv(`nim,nama
+1,"BUDI, S.T."
+`)[1][1],
+  "BUDI, S.T.",
+  "koma di dalam kutip tidak memecah kolom"
+);
+
+assert.equal(
+  parseCsv(`a
+"dia ""bilang"" begitu"
+`)[1][0],
+  'dia "bilang" begitu',
+  "kutip ganda menjadi satu kutip"
+);
+
+// Excel menyisipkan BOM; tanpa dibuang, nama kolom pertama tidak pernah cocok.
+assert.equal(parseCsv("﻿No,NIM\n1,2\n")[0][0], "No", "BOM dibuang");
+
+assert.equal(parseCsv("a,b\n\n1,2\n\n").length, 2, "baris kosong dibuang");
+
+assert.equal(parseCsv("a,b\r\n1,2\r\n")[1][0], "1", "akhiran CRLF ditangani");
 
 console.log("csv.check.ts: semua pemeriksaan lolos");
