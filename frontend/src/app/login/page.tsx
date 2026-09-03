@@ -74,6 +74,10 @@ export default function LoginPage() {
             </div>
           ) : (
             <>
+              {/* Sengaja <a>, bukan <Link>: endpoint ini membalas dengan
+                  redirect ke Google, jadi butuh navigasi dokumen penuh.
+                  Navigasi client-side milik <Link> akan menggagalkannya. */}
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
               <a
                 href="/api/auth/google/login?next=/"
                 className={cn(buttonVariants(), "w-full")}
