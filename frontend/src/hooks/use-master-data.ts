@@ -2,6 +2,8 @@
 
 import { useEffect, useState, type SetStateAction } from "react";
 
+import { toast } from "sonner";
+
 import { api } from "@/lib/api";
 import {
   initialMasterData,
@@ -33,6 +35,12 @@ async function ensureLoaded() {
   await loading;
 }
 export function setMasterData(value: SetStateAction<MasterData>) {
+  // Keadaan sebelum perubahan disimpan supaya bisa dikembalikan bila server
+  // menolak. Tanpa itu layar menampilkan data yang tidak pernah tersimpan,
+  // lengkap dengan toast "berhasil", dan baru ketahuan saat halaman dimuat
+  // ulang dan datanya lenyap.
+  const sebelum = currentData;
+
   currentData =
     typeof value === "function"
       ? (value as (data: MasterData) => MasterData)(currentData)
@@ -46,8 +54,16 @@ export function setMasterData(value: SetStateAction<MasterData>) {
     currentData = serverData;
     loaded = true;
     emit();
-  }).catch((error) => {
-    console.error("Gagal menyimpan master data ke backend", error);
+  }).catch((error: unknown) => {
+    currentData = sebelum;
+    emit();
+
+    toast.error("Perubahan tidak tersimpan.", {
+      description:
+        error instanceof Error
+          ? error.message
+          : "Server tidak merespons, perubahan dikembalikan.",
+    });
   });
 }
 
