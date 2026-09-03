@@ -38,6 +38,10 @@ const adminNavigation = [
     label: "Pengaturan Tugas",
   },
   {
+    href: "/admin/mahasiswa",
+    label: "Mahasiswa",
+  },
+  {
     href: "/admin/pengguna",
     label: "Pengguna",
   },
