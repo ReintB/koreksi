@@ -1,0 +1,110 @@
+-- Skema Koreksi Tugas.
+--
+-- Bentuknya diturunkan dari tipe yang sudah dituntut frontend di
+-- src/lib/master-data.ts, src/lib/submission.ts, dan src/hooks/use-submissions.ts.
+-- Kolom sengaja memakai snake_case; pemetaan ke camelCase dilakukan di
+-- lapisan route handler, bukan di sini.
+--
+-- Jalankan ulang aman: semua objek dibuat dengan IF NOT EXISTS.
+
+-- ---------- master data ----------
+
+CREATE TABLE IF NOT EXISTS mata_kuliah (
+  id    text PRIMARY KEY,
+  nama  text NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tugas (
+  id               text PRIMARY KEY,
+  mata_kuliah_id   text NOT NULL REFERENCES mata_kuliah(id) ON DELETE CASCADE,
+  nomor            integer NOT NULL,
+  judul            text NOT NULL,
+  -- null berarti tugas tanpa batas waktu
+  tenggat          timestamptz,
+  rubrik_file_name text,
+  rubrik_text      text,
+  UNIQUE (mata_kuliah_id, nomor)
+);
+
+CREATE TABLE IF NOT EXISTS kelas_praktikum (
+  id    text PRIMARY KEY,
+  nama  text NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS angkatan (
+  id    text PRIMARY KEY,
+  tahun text NOT NULL
+);
+
+-- ---------- roster mahasiswa ----------
+
+CREATE TABLE IF NOT EXISTS mahasiswa (
+  id       text PRIMARY KEY,
+  nim      text NOT NULL UNIQUE,
+  nama     text NOT NULL,
+  angkatan text NOT NULL,
+  email    text
+);
+
+-- Kelas praktikum berbeda per mata kuliah, sesuai StudentProfile.kelas
+-- yang berbentuk Record<mataKuliahId, kelas> di frontend.
+CREATE TABLE IF NOT EXISTS mahasiswa_kelas (
+  nim            text NOT NULL REFERENCES mahasiswa(nim) ON DELETE CASCADE,
+  mata_kuliah_id text NOT NULL REFERENCES mata_kuliah(id) ON DELETE CASCADE,
+  kelas          text NOT NULL,
+  PRIMARY KEY (nim, mata_kuliah_id)
+);
+
+-- ---------- akun google ----------
+
+-- Identitas dijamin Google; baris ini menyimpan yang tidak diketahui Google:
+-- peran, status aktif, jejak login, dan tautan ke baris roster.
+CREATE TABLE IF NOT EXISTS app_user (
+  id          text PRIMARY KEY,
+  email       text NOT NULL UNIQUE,
+  name        text NOT NULL,
+  avatar_url  text,
+  role        text NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
+  active      boolean NOT NULL DEFAULT true,
+  login_count integer NOT NULL DEFAULT 0,
+  last_login  timestamptz,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  -- Penautan ke roster dilakukan admin, bukan diisi mahasiswa sendiri.
+  nim         text REFERENCES mahasiswa(nim) ON DELETE SET NULL
+);
+
+-- ---------- pengumpulan ----------
+
+CREATE TABLE IF NOT EXISTS submission (
+  id             text PRIMARY KEY,
+  nim            text NOT NULL REFERENCES mahasiswa(nim) ON DELETE CASCADE,
+  mata_kuliah_id text NOT NULL REFERENCES mata_kuliah(id) ON DELETE CASCADE,
+  tugas_id       text NOT NULL REFERENCES tugas(id) ON DELETE CASCADE,
+  link_youtube   text NOT NULL,
+  link_drive     text,
+  status         text NOT NULL DEFAULT 'menunggu'
+                 CHECK (status IN ('menunggu', 'diproses', 'selesai', 'gagal')),
+  -- Hasil mesin dan hasil koreksi manual disimpan terpisah supaya nilai
+  -- otomatis tidak hilang saat asprak menimpanya. Frontend menampilkan
+  -- skor_manual bila ada, dan menandainya sebagai "ditimpa".
+  skor_otomatis  integer CHECK (skor_otomatis BETWEEN 0 AND 100),
+  skor_manual    integer CHECK (skor_manual BETWEEN 0 AND 100),
+  catatan_timpa  text,
+  transkrip      text,
+  error_message  text,
+  dikirim_pada   timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS submission_nim_idx ON submission (nim);
+CREATE INDEX IF NOT EXISTS submission_tugas_idx ON submission (tugas_id);
+
+CREATE TABLE IF NOT EXISTS evaluasi (
+  id            text PRIMARY KEY,
+  submission_id text NOT NULL REFERENCES submission(id) ON DELETE CASCADE,
+  materi        text NOT NULL,
+  status        text NOT NULL CHECK (status IN ('terpenuhi', 'sebagian', 'belum')),
+  catatan       text,
+  urutan        integer NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS evaluasi_submission_idx ON evaluasi (submission_id);
