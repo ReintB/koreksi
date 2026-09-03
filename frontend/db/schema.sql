@@ -116,3 +116,13 @@ CREATE INDEX IF NOT EXISTS evaluasi_submission_idx ON evaluasi (submission_id);
 -- ada tidak punya kode, dan tampilan menanganinya dengan menyembunyikan
 -- awalan kode alih-alih menampilkan strip kosong.
 ALTER TABLE mata_kuliah ADD COLUMN IF NOT EXISTS kode text;
+
+-- ---------- satu pengumpulan per tugas ----------
+
+-- Seluruh tampilan memperlakukan satu mahasiswa punya paling banyak satu
+-- pengumpulan per tugas: rekap mencarinya dengan find, dan ringkasan status
+-- menghitung per baris. Tanpa batasan ini pengiriman ulang menghasilkan baris
+-- kedua, dan rekap diam-diam memilih salah satunya. Dibuat sebagai unique
+-- index, bukan constraint, karena hanya index yang mendukung IF NOT EXISTS.
+CREATE UNIQUE INDEX IF NOT EXISTS submission_nim_tugas_idx
+  ON submission (nim, tugas_id);
