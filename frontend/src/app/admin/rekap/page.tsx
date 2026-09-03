@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/table";
 
 import { useMasterData } from "@/hooks/use-master-data";
+import { labelMataKuliah } from "@/lib/master-data";
 import { useAdminSubmissions, useStudents } from "@/hooks/use-submissions";
 import { csvFilename, downloadCsv, toCsv } from "@/lib/csv";
 import { buildRekap, rekapCounts, type RekapRow } from "@/lib/rekap";
@@ -187,7 +188,7 @@ export default function AdminRekapPage() {
 
   const opsiMataKuliah = data.mataKuliah.map((item) => ({
     value: item.id,
-    label: item.nama,
+    label: labelMataKuliah(item),
   }));
 
   const opsiTugas = tugasMataKuliah.map((item) => ({

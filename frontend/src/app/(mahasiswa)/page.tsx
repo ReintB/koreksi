@@ -39,7 +39,7 @@ import {
 import { TenggatText } from "@/components/tenggat-text";
 import { useMasterData } from "@/hooks/use-master-data";
 import { useAuth } from "@/hooks/use-auth";
-import type { Tugas } from "@/lib/master-data";
+import { labelMataKuliah, type Tugas } from "@/lib/master-data";
 import { tenggatInfo } from "@/lib/tenggat";
 import { cn } from "@/lib/utils";
 
@@ -275,7 +275,7 @@ export default function SubmitTugasPage() {
                               key={mataKuliah.id}
                               value={mataKuliah.id}
                             >
-                              {mataKuliah.nama}
+                              {labelMataKuliah(mataKuliah)}
                             </SelectItem>
                           ))}
                         </SelectContent>

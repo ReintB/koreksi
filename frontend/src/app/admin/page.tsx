@@ -66,6 +66,7 @@ import {
 } from "@/components/score-override-dialog";
 
 import { useMasterData } from "@/hooks/use-master-data";
+import { labelMataKuliah } from "@/lib/master-data";
 import { useAdminSubmissions } from "@/hooks/use-submissions";
 import { csvFilename, downloadCsv, toCsv } from "@/lib/csv";
 import { ELIPSIS, nomorHalaman } from "@/lib/paginasi";
@@ -183,8 +184,10 @@ export default function AdminPage() {
   const opsiMataKuliah = [
     { value: SEMUA, label: "Semua Mata Kuliah" },
     ...data.mataKuliah.map((item) => ({
+      // Nilai tetap nama, karena pengumpulan menyimpan mata kuliah sebagai
+      // nama. Yang berubah hanya labelnya.
       value: item.nama,
-      label: item.nama,
+      label: labelMataKuliah(item),
     })),
   ];
 

@@ -108,3 +108,11 @@ CREATE TABLE IF NOT EXISTS evaluasi (
 );
 
 CREATE INDEX IF NOT EXISTS evaluasi_submission_idx ON evaluasi (submission_id);
+
+-- ---------- kode mata kuliah ----------
+
+-- Ditambahkan belakangan, jadi ditulis sebagai ALTER agar database yang sudah
+-- berisi data tidak perlu dibuat ulang. Boleh kosong: mata kuliah yang sudah
+-- ada tidak punya kode, dan tampilan menanganinya dengan menyembunyikan
+-- awalan kode alih-alih menampilkan strip kosong.
+ALTER TABLE mata_kuliah ADD COLUMN IF NOT EXISTS kode text;

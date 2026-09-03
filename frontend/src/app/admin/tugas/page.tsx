@@ -85,7 +85,11 @@ import { TenggatPicker } from "@/components/tenggat-picker";
 import { TenggatText } from "@/components/tenggat-text";
 import { useMasterData } from "@/hooks/use-master-data";
 import { adaDuplikat, hapusById, upsert } from "@/lib/koleksi";
-import { createMasterDataId, type Tugas } from "@/lib/master-data";
+import {
+  createMasterDataId,
+  labelMataKuliah,
+  type Tugas,
+} from "@/lib/master-data";
 import { tenggatFromInput, tenggatToInput } from "@/lib/tenggat";
 import { cn } from "@/lib/utils";
 
@@ -204,7 +208,7 @@ export default function AdminTugasPage() {
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [rubrikPreview, setRubrikPreview] = useState<Tugas | null>(null);
 
-  const [mataKuliahForm, setMataKuliahForm] = useState({ nama: "" });
+  const [mataKuliahForm, setMataKuliahForm] = useState({ nama: "", kode: "" });
   const [kelasForm, setKelasForm] = useState({ nama: "" });
   const [angkatanForm, setAngkatanForm] = useState({ tahun: "" });
 
@@ -237,7 +241,7 @@ export default function AdminTugasPage() {
   }
 
   function openCreateMataKuliah() {
-    setMataKuliahForm({ nama: "" });
+    setMataKuliahForm({ nama: "", kode: "" });
     setEditor({ kind: "mataKuliah", mode: "create" });
   }
 
@@ -246,12 +250,17 @@ export default function AdminTugasPage() {
 
     if (!item) return;
 
-    setMataKuliahForm({ nama: item.nama });
+    setMataKuliahForm({ nama: item.nama, kode: item.kode ?? "" });
     setEditor({ kind: "mataKuliah", mode: "edit", id });
   }
 
   function saveMataKuliah() {
     const nama = mataKuliahForm.nama.trim();
+
+    // Kode bersifat opsional. Yang dikosongkan disimpan sebagai null, bukan
+    // string kosong, supaya labelMataKuliah bisa membedakan "belum diisi"
+    // dari "diisi kosong".
+    const kode = mataKuliahForm.kode.trim().toUpperCase() || null;
 
     if (nama.length < 3) {
       toast.error("Nama mata kuliah minimal 3 karakter.");
@@ -274,7 +283,7 @@ export default function AdminTugasPage() {
 
     setMasterData((current) => ({
       ...current,
-      mataKuliah: upsert(current.mataKuliah, id, { nama }),
+      mataKuliah: upsert(current.mataKuliah, id, { nama, kode }),
     }));
 
     // Mata kuliah baru langsung jadi yang terpilih. Yang diedit tidak, supaya
@@ -650,7 +659,7 @@ export default function AdminTugasPage() {
                               className="truncate text-left after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none"
                               onClick={() => setActiveMataKuliahId(mk.id)}
                             >
-                              {mk.nama}
+                              {labelMataKuliah(mk)}
                             </button>
                           </ItemTitle>
 
@@ -661,13 +670,13 @@ export default function AdminTugasPage() {
 
                         <ItemActions className="relative">
                           <RowActions
-                            label={mk.nama}
+                            label={labelMataKuliah(mk)}
                             onEdit={() => openEditMataKuliah(mk.id)}
                             onDelete={() =>
                               setDeleteTarget({
                                 kind: "mataKuliah",
                                 id: mk.id,
-                                label: mk.nama,
+                                label: labelMataKuliah(mk),
                               })
                             }
                           />
@@ -937,16 +946,34 @@ export default function AdminTugasPage() {
 
               <div className="space-y-5 pt-2">
                 {editor.kind === "mataKuliah" && (
-                  <KolomTeks
-                    id="namaMataKuliah"
-                    label="Nama Mata Kuliah"
-                    placeholder="Praktikum Alpro"
-                    value={mataKuliahForm.nama}
-                    onChange={(event) =>
-                      setMataKuliahForm({ nama: event.target.value })
-                    }
-                    autoFocus
-                  />
+                  <>
+                    <KolomTeks
+                      id="kodeMataKuliah"
+                      label="Kode"
+                      placeholder="TRO101"
+                      value={mataKuliahForm.kode}
+                      onChange={(event) =>
+                        setMataKuliahForm((current) => ({
+                          ...current,
+                          kode: event.target.value,
+                        }))
+                      }
+                      autoFocus
+                    />
+
+                    <KolomTeks
+                      id="namaMataKuliah"
+                      label="Nama Mata Kuliah"
+                      placeholder="Praktikum Alpro"
+                      value={mataKuliahForm.nama}
+                      onChange={(event) =>
+                        setMataKuliahForm((current) => ({
+                          ...current,
+                          nama: event.target.value,
+                        }))
+                      }
+                    />
+                  </>
                 )}
 
                 {editor.kind === "kelas" && (

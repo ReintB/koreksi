@@ -6,7 +6,11 @@ import { pastikanAdmin, pastikanMasuk } from "@/lib/otorisasi";
 
 const skema = z.object({
   mataKuliah: z.array(
-    z.object({ id: z.string().min(1), nama: z.string().min(1) })
+    z.object({
+      id: z.string().min(1),
+      nama: z.string().min(1),
+      kode: z.string().nullable(),
+    })
   ),
   tugas: z.array(
     z.object({
@@ -32,7 +36,7 @@ async function baca() {
   const sql = db();
 
   const [mataKuliah, tugas, kelasPraktikum, angkatan] = await Promise.all([
-    sql`SELECT id, nama FROM mata_kuliah ORDER BY nama`,
+    sql`SELECT id, nama, kode FROM mata_kuliah ORDER BY nama`,
     sql`SELECT id, mata_kuliah_id, nomor, judul, tenggat, rubrik_file_name, rubrik_text
           FROM tugas ORDER BY mata_kuliah_id, nomor`,
     sql`SELECT id, nama FROM kelas_praktikum ORDER BY nama`,
@@ -40,7 +44,11 @@ async function baca() {
   ]);
 
   return {
-    mataKuliah: mataKuliah.map((b) => ({ id: b.id, nama: b.nama })),
+    mataKuliah: mataKuliah.map((b) => ({
+      id: b.id,
+      nama: b.nama,
+      kode: b.kode ?? null,
+    })),
     tugas: tugas.map((b) => ({
       id: b.id,
       mataKuliahId: b.mata_kuliah_id,
@@ -117,8 +125,10 @@ export async function PUT(request: Request) {
 
   const perintah = [
     ...data.mataKuliah.map(
-      (item) => sql`INSERT INTO mata_kuliah (id, nama) VALUES (${item.id}, ${item.nama})
-                    ON CONFLICT (id) DO UPDATE SET nama = EXCLUDED.nama`
+      (item) => sql`INSERT INTO mata_kuliah (id, nama, kode)
+                    VALUES (${item.id}, ${item.nama}, ${item.kode})
+                    ON CONFLICT (id) DO UPDATE SET
+                      nama = EXCLUDED.nama, kode = EXCLUDED.kode`
     ),
     ...data.kelasPraktikum.map(
       (item) => sql`INSERT INTO kelas_praktikum (id, nama) VALUES (${item.id}, ${item.nama})

@@ -3,6 +3,8 @@ import { readJson, writeJson } from "@/lib/storage";
 export type MataKuliah = {
   id: string;
   nama: string;
+  /** Kode mata kuliah seperti TRO101. Null bila belum diisi. */
+  kode: string | null;
 };
 
 export type Tugas = {
@@ -40,14 +42,17 @@ export const initialMasterData: MasterData = {
     {
       id: "mk-alpro",
       nama: "Praktikum Alpro",
+      kode: null,
     },
     {
       id: "mk-basis-data",
       nama: "Praktikum Basis Data",
+      kode: null,
     },
     {
       id: "mk-jaringan",
       nama: "Praktikum Jaringan Komputer",
+      kode: null,
     },
   ],
 
@@ -142,6 +147,22 @@ export function loadMasterData(): MasterData {
 
 export function saveMasterData(data: MasterData) {
   writeJson(MASTER_DATA_STORAGE_KEY, data);
+}
+
+/**
+ * Label mata kuliah untuk ditampilkan di dropdown, daftar, dan filter.
+ *
+ * Dikumpulkan di sini supaya keenam tempat yang menampilkannya tidak
+ * merangkai formatnya sendiri-sendiri. Mata kuliah tanpa kode ditampilkan
+ * apa adanya, bukan dengan strip menggantung di depan namanya.
+ */
+export function labelMataKuliah(mataKuliah: {
+  kode: string | null;
+  nama: string;
+}) {
+  return mataKuliah.kode
+    ? `${mataKuliah.kode} - ${mataKuliah.nama}`
+    : mataKuliah.nama;
 }
 
 export function createMasterDataId(prefix: string) {
