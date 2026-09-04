@@ -15,6 +15,7 @@ import {
   PencilLine,
   Search,
   SearchX,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -52,6 +53,18 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { api } from "@/lib/api";
+import { notifyApiRefresh } from "@/hooks/use-api-data";
 import { DataError } from "@/components/common/data-error";
 import { EmptyState } from "@/components/common/empty-state";
 import { FilterSelect } from "@/components/filter-select";
@@ -189,6 +202,7 @@ export default function AdminPage() {
   const [selected, setSelected] = useState<AdminRow | null>(null);
   const [ubahSkor, setUbahSkor] = useState<ScoreOverrideTarget | null>(null);
   const [perPage, setPerPage] = useState<string>(PER_PAGE_BAWAAN);
+  const [akanDihapus, setAkanDihapus] = useState<AdminRow | null>(null);
 
   const { data } = useMasterData();
   const {
@@ -258,6 +272,23 @@ export default function AdminPage() {
     const posisi = sorted.findIndex((row) => row.id === idSekarang);
 
     return sorted.slice(posisi + 1).find((row) => row.skor === null) ?? null;
+  }
+
+  async function hapusPengumpulan(row: AdminRow) {
+    try {
+      await api(`/submissions/${encodeURIComponent(row.id)}`, {
+        method: "DELETE",
+      });
+      setAkanDihapus(null);
+      notifyApiRefresh();
+      toast.success("Pengumpulan dihapus.", {
+        description: `${row.namaMahasiswa} — Tugas ${row.tugasKe} ${row.judulTugas}.`,
+      });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal menghapus pengumpulan."
+      );
+    }
   }
 
   function targetSkor(row: AdminRow): ScoreOverrideTarget {
@@ -635,6 +666,19 @@ export default function AdminPage() {
                                 <Download className="size-4" />
                                 Unduh Hasil
                               </DropdownMenuItem>
+
+                              {/* Satu-satunya jalan melepas mata kuliah atau
+                                  tugas yang terlanjur punya pengumpulan.
+                                  Penjagaan penghapusannya tetap dipertahankan;
+                                  yang selama ini kurang adalah pintu
+                                  keluarnya. */}
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onClick={() => setAkanDihapus(submission)}
+                              >
+                                <Trash2 className="size-4" />
+                                Hapus Pengumpulan
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -722,6 +766,38 @@ export default function AdminPage() {
         onClose={() => setSelected(null)}
         onDownload={unduhHasil}
       />
+
+      <AlertDialog
+        open={akanDihapus !== null}
+        onOpenChange={(open) => {
+          if (!open) setAkanDihapus(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus pengumpulan ini?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Pengumpulan {akanDihapus?.namaMahasiswa} untuk Tugas{" "}
+              {akanDihapus?.tugasKe} {akanDihapus?.judulTugas} akan dihapus
+              beserta nilai dan hasil evaluasinya. Mahasiswa masih bisa
+              mengirim ulang tugas yang sama setelah ini.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (akanDihapus) void hapusPengumpulan(akanDihapus);
+              }}
+            >
+              <Trash2 className="size-4" />
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

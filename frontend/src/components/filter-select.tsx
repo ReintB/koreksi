@@ -6,8 +6,8 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 export function FilterSelect<T extends string>({
   id,
@@ -24,6 +24,14 @@ export function FilterSelect<T extends string>({
   onChange: (value: T) => void;
   className?: string;
 }) {
+  // SelectValue mencetak nilai mentahnya, bukan label opsinya. Untuk penyaring
+  // yang nilainya kebetulan sama dengan yang ingin dibaca — nama kelas,
+  // misalnya — itu tidak kelihatan salah. Tetapi begitu nilainya id mata
+  // kuliah atau penanda "semua", trigger-nya memajang "mk-1788421558059-lcvt8u"
+  // dan "__semua__". Labelnya dicari sendiri di sini, memakai pola yang sama
+  // dengan pemilih mata kuliah di halaman kirim tugas.
+  const terpilih = options.find((opsi) => opsi.value === value);
+
   return (
     <Field className={className}>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
@@ -34,7 +42,9 @@ export function FilterSelect<T extends string>({
         disabled={options.length === 0}
       >
         <SelectTrigger id={id} className="w-full">
-          <SelectValue placeholder={label} />
+          <span className={cn("truncate", !terpilih && "text-muted-foreground")}>
+            {terpilih?.label ?? label}
+          </span>
         </SelectTrigger>
 
         <SelectContent>
