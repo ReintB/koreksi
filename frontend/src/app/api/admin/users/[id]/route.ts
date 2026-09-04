@@ -91,3 +91,45 @@ export async function PATCH(
 
   return NextResponse.json(await pengguna(id));
 }
+
+/**
+ * Menghapus satu akun Google dari daftar.
+ *
+ * Pengumpulan terikat ke NIM roster, bukan ke baris ini, sehingga menghapus
+ * akun tidak menghilangkan nilai siapa pun — yang hilang hanya peran, jejak
+ * login, dan tautan NIM-nya. Barisnya dibuat ulang sebagai user biasa begitu
+ * orangnya login lagi, jadi ini bukan cara memblokir: untuk itu pakai
+ * penonaktifan.
+ */
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const sesi = await pastikanAdmin();
+  if (!sesi.ok) return sesi.balasan;
+
+  const { id } = await params;
+  const sql = db();
+  const sasaran = await sql`SELECT email FROM app_user WHERE id = ${id}`;
+
+  if (sasaran.length === 0) {
+    return NextResponse.json(
+      { detail: "Pengguna tidak ditemukan." },
+      { status: 404 }
+    );
+  }
+
+  // Sejalan dengan penjagaan pada PATCH: admin yang menghapus barisnya sendiri
+  // kehilangan perannya sampai ia login ulang, dan bila ia bukan ADMIN_EMAIL
+  // tidak ada yang tersisa untuk mengangkatnya kembali.
+  if ((sasaran[0].email as string).toLowerCase() === sesi.email.toLowerCase()) {
+    return NextResponse.json(
+      { detail: "Akun sendiri tidak bisa dihapus dari sini." },
+      { status: 400 }
+    );
+  }
+
+  await sql`DELETE FROM app_user WHERE id = ${id}`;
+
+  return new Response(null, { status: 204 });
+}

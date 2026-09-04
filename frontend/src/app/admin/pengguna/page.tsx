@@ -1,11 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RefreshCw, ShieldCheck, UserCheck, UserX } from "lucide-react";
+import { RefreshCw, ShieldCheck, Trash2, Unlink, UserCheck, UserX } from "lucide-react";
 import { toast } from "sonner";
 
 import { Navbar } from "@/components/navbar";
 import { PageHeader } from "@/components/page-header";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,6 +32,8 @@ export default function AdminPenggunaPage() {
   const [users, setUsers] = useState<AuthUser[]>([]);
   const [nimDraft, setNimDraft] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [akanDihapus, setAkanDihapus] = useState<AuthUser | null>(null);
+
   async function load() {
     try {
       setLoading(true);
@@ -51,6 +63,18 @@ export default function AdminPenggunaPage() {
       toast.error(error instanceof Error ? error.message : "Gagal memperbarui pengguna");
     }
   }
+
+  async function hapusUser(user: AuthUser) {
+    try {
+      await api(`/admin/users/${user.id}`, { method: "DELETE" });
+      toast.success(`Akun ${user.email} dihapus.`);
+      setAkanDihapus(null);
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal menghapus pengguna");
+    }
+  }
+
   return (
     <>
       <Navbar />
@@ -114,6 +138,23 @@ export default function AdminPenggunaPage() {
                           <Button size="sm" variant="outline" onClick={() => void patchUser(user, { nim: nimDraft[user.id] ?? "" })}>
                             Simpan
                           </Button>
+
+                          {/* Melepas tautan, bukan menghapus akun, adalah cara
+                              membebaskan NIM agar bisa dipakai akun Google
+                              lain. Sebelum ada tombol ini caranya adalah
+                              mengosongkan kolom lalu Simpan — bekerja, tetapi
+                              tidak ada yang menunjukkannya. */}
+                          {user.student && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              aria-label={`Lepas NIM ${user.student.nim} dari ${user.email}`}
+                              onClick={() => void patchUser(user, { nim: "" })}
+                            >
+                              <Unlink className="size-4" />
+                              Lepas
+                            </Button>
+                          )}
                         </div>
                         {user.student && <p className="mt-1 text-xs text-muted-foreground">{user.student.nama}</p>}
                       </TableCell>
@@ -141,6 +182,16 @@ export default function AdminPenggunaPage() {
                           >
                             {user.active ? "Nonaktifkan" : "Aktifkan"}
                           </Button>
+
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            aria-label={`Hapus akun ${user.email}`}
+                            onClick={() => setAkanDihapus(user)}
+                            disabled={user.email.toLowerCase() === saya?.email.toLowerCase()}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -156,6 +207,37 @@ export default function AdminPenggunaPage() {
           </CardContent>
         </Card>
       </main>
+
+      <AlertDialog
+        open={akanDihapus !== null}
+        onOpenChange={(open) => {
+          if (!open) setAkanDihapus(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus akun ini?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {akanDihapus?.email} kehilangan peran, jejak login, dan tautan
+              NIM-nya. Pengumpulan tersimpan atas nama NIM roster, jadi nilai
+              mahasiswa tetap utuh, dan akunnya muncul lagi sebagai user biasa
+              begitu orangnya login ulang. Bila hanya ingin membebaskan NIM,
+              pakai Lepas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (akanDihapus) void hapusUser(akanDihapus);
+              }}
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
