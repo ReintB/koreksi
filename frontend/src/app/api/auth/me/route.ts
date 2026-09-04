@@ -24,7 +24,10 @@ export async function GET() {
   // Mahasiswa yang tertaut ditampilkan di halaman profil dan dipakai halaman
   // kirim tugas untuk mengisi NIM, jadi diambil sekalian di sini.
   const mahasiswa = baris?.nim
-    ? (await db()`SELECT id, nim, nama FROM mahasiswa WHERE nim = ${baris.nim}`)[0]
+    ? (
+        await db()`SELECT id, nim, nama, angkatan FROM mahasiswa
+                    WHERE nim = ${baris.nim}`
+      )[0]
     : null;
 
   return NextResponse.json({
@@ -46,7 +49,12 @@ export async function GET() {
         ? new Date(baris.created_at as string).toISOString()
         : null,
       student: mahasiswa
-        ? { id: mahasiswa.id, nim: mahasiswa.nim, nama: mahasiswa.nama }
+        ? {
+            id: mahasiswa.id,
+            nim: mahasiswa.nim,
+            nama: mahasiswa.nama,
+            angkatan: mahasiswa.angkatan,
+          }
         : null,
     },
   });

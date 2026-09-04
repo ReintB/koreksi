@@ -19,7 +19,7 @@ export async function GET() {
   const baris = await sql`
     SELECT u.id, u.email, u.name, u.avatar_url, u.role, u.active,
            u.login_count, u.last_login, u.created_at, u.nim,
-           m.id AS mhs_id, m.nama AS mhs_nama
+           m.id AS mhs_id, m.nama AS mhs_nama, m.angkatan AS mhs_angkatan
       FROM app_user u
       LEFT JOIN mahasiswa m ON m.nim = u.nim
      ORDER BY u.last_login DESC NULLS LAST, u.email
@@ -29,7 +29,14 @@ export async function GET() {
     baris.map((b) =>
       bentukPengguna(
         b,
-        b.nim ? { id: b.mhs_id, nim: b.nim, nama: b.mhs_nama } : null
+        b.nim
+          ? {
+              id: b.mhs_id,
+              nim: b.nim,
+              nama: b.mhs_nama,
+              angkatan: b.mhs_angkatan,
+            }
+          : null
       )
     )
   );

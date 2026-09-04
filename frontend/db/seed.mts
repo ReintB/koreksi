@@ -27,9 +27,12 @@ const sql = neon(url);
 // ---------- master data ----------
 
 for (const item of initialMasterData.mataKuliah) {
-  await sql`INSERT INTO mata_kuliah (id, nama, kode)
-            VALUES (${item.id}, ${item.nama}, ${item.kode})
-            ON CONFLICT (id) DO UPDATE SET nama = EXCLUDED.nama, kode = EXCLUDED.kode`;
+  await sql`INSERT INTO mata_kuliah (id, nama, kode, angkatan)
+            VALUES (${item.id}, ${item.nama}, ${item.kode}, ${item.angkatan})
+            ON CONFLICT (id) DO UPDATE SET
+              nama = EXCLUDED.nama,
+              kode = EXCLUDED.kode,
+              angkatan = EXCLUDED.angkatan`;
 }
 
 for (const item of initialMasterData.kelasPraktikum) {

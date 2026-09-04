@@ -153,8 +153,24 @@ export default function SubmitTugasPage() {
         .sort((a, b) => a.nomor - b.nomor)
     : [];
 
+  // Tiap angkatan mengambil praktikum yang berbeda, dan mata kuliah tanpa
+  // angkatan berlaku untuk semua. Selama akun belum ditautkan ke roster
+  // angkatannya belum diketahui; daftarnya ditampilkan apa adanya karena
+  // pengiriman toh sudah tertahan oleh NIM yang kosong.
+  const angkatanSaya = user?.student?.angkatan ?? null;
+
+  const mataKuliahTersedia = angkatanSaya
+    ? data.mataKuliah.filter(
+        (item) => item.angkatan === null || item.angkatan === angkatanSaya
+      )
+    : data.mataKuliah;
+
   const mataKuliahPlaceholder =
-    data.mataKuliah.length === 0 ? "Belum ada mata kuliah" : "Pilih mata kuliah";
+    mataKuliahTersedia.length === 0
+      ? angkatanSaya
+        ? `Belum ada mata kuliah untuk angkatan ${angkatanSaya}`
+        : "Belum ada mata kuliah"
+      : "Pilih mata kuliah";
 
   const tenggatLewat =
     isHydrated && selectedTugas?.tenggat
@@ -256,7 +272,7 @@ export default function SubmitTugasPage() {
                           field.onChange(value);
                           setValue("tugasId", "");
                         }}
-                        disabled={!isHydrated || data.mataKuliah.length === 0}
+                        disabled={!isHydrated || mataKuliahTersedia.length === 0}
                       >
                         <SelectTrigger id="mataKuliahId" className="w-full">
                           <span
@@ -270,7 +286,7 @@ export default function SubmitTugasPage() {
                         </SelectTrigger>
 
                         <SelectContent>
-                          {data.mataKuliah.map((mataKuliah) => (
+                          {mataKuliahTersedia.map((mataKuliah) => (
                             <SelectItem
                               key={mataKuliah.id}
                               value={mataKuliah.id}

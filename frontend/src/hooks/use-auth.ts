@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
-export type AuthStudent = { id: string; nim: string; nama: string };
+// Angkatan ikut dibawa karena halaman kirim tugas memakainya untuk menyaring
+// mata kuliah: tiap angkatan mengambil praktikum yang berbeda.
+export type AuthStudent = {
+  id: string;
+  nim: string;
+  nama: string;
+  angkatan: string;
+};
 export type AuthUser = {
   id: string;
   email: string;

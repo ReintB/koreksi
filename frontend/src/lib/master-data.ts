@@ -5,6 +5,14 @@ export type MataKuliah = {
   nama: string;
   /** Kode mata kuliah seperti TRO101. Null bila belum diisi. */
   kode: string | null;
+  /**
+   * Tahun angkatan yang mengambil mata kuliah ini, seperti "2025".
+   *
+   * Null berarti berlaku untuk semua angkatan. Mata kuliah bernama sama yang
+   * diambil angkatan berikutnya dibuat sebagai baris tersendiri, karena tugas
+   * beserta tenggat dan rubriknya menggantung pada satu baris mata kuliah.
+   */
+  angkatan: string | null;
 };
 
 export type Tugas = {
@@ -43,16 +51,19 @@ export const initialMasterData: MasterData = {
       id: "mk-alpro",
       nama: "Praktikum Alpro",
       kode: null,
+      angkatan: "2026",
     },
     {
       id: "mk-basis-data",
       nama: "Praktikum Basis Data",
       kode: null,
+      angkatan: "2025",
     },
     {
       id: "mk-jaringan",
       nama: "Praktikum Jaringan Komputer",
       kode: null,
+      angkatan: null,
     },
   ],
 

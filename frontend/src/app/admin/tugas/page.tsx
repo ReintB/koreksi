@@ -15,6 +15,7 @@ import {
 
 import { toast } from "sonner";
 
+import { FilterSelect } from "@/components/filter-select";
 import { Navbar } from "@/components/navbar";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -96,6 +97,11 @@ import { cn } from "@/lib/utils";
 type Section = "tugas" | "akademik";
 
 type EditorKind = "mataKuliah" | "tugas" | "kelas" | "angkatan";
+
+// Mata kuliah tanpa angkatan berlaku untuk semua angkatan. Select tidak bisa
+// memakai string kosong sebagai nilai pilihan, jadi keadaan itu diwakili
+// penanda yang diterjemahkan ke null saat disimpan.
+const SEMUA_ANGKATAN = "__semua__";
 
 type Editor = {
   kind: EditorKind;
@@ -208,7 +214,11 @@ export default function AdminTugasPage() {
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [rubrikPreview, setRubrikPreview] = useState<Tugas | null>(null);
 
-  const [mataKuliahForm, setMataKuliahForm] = useState({ nama: "", kode: "" });
+  const [mataKuliahForm, setMataKuliahForm] = useState({
+    nama: "",
+    kode: "",
+    angkatan: SEMUA_ANGKATAN,
+  });
   const [kelasForm, setKelasForm] = useState({ nama: "" });
   const [angkatanForm, setAngkatanForm] = useState({ tahun: "" });
 
@@ -241,7 +251,7 @@ export default function AdminTugasPage() {
   }
 
   function openCreateMataKuliah() {
-    setMataKuliahForm({ nama: "", kode: "" });
+    setMataKuliahForm({ nama: "", kode: "", angkatan: SEMUA_ANGKATAN });
     setEditor({ kind: "mataKuliah", mode: "create" });
   }
 
@@ -250,7 +260,11 @@ export default function AdminTugasPage() {
 
     if (!item) return;
 
-    setMataKuliahForm({ nama: item.nama, kode: item.kode ?? "" });
+    setMataKuliahForm({
+      nama: item.nama,
+      kode: item.kode ?? "",
+      angkatan: item.angkatan ?? SEMUA_ANGKATAN,
+    });
     setEditor({ kind: "mataKuliah", mode: "edit", id });
   }
 
@@ -262,19 +276,33 @@ export default function AdminTugasPage() {
     // dari "diisi kosong".
     const kode = mataKuliahForm.kode.trim().toUpperCase() || null;
 
+    const angkatan =
+      mataKuliahForm.angkatan === SEMUA_ANGKATAN
+        ? null
+        : mataKuliahForm.angkatan;
+
     if (nama.length < 3) {
       toast.error("Nama mata kuliah minimal 3 karakter.");
       return;
     }
 
+    // Nama yang sama boleh muncul lebih dari sekali selama angkatannya
+    // berbeda: itu penyelenggaraan tahun berikutnya dengan tugas dan tenggat
+    // sendiri, bukan duplikat.
     const duplicate = adaDuplikat(
       data.mataKuliah,
       editor?.id,
-      (item) => item.nama.toLowerCase() === nama.toLowerCase()
+      (item) =>
+        item.nama.toLowerCase() === nama.toLowerCase() &&
+        (item.angkatan ?? null) === angkatan
     );
 
     if (duplicate) {
-      toast.error("Mata kuliah tersebut sudah ada.");
+      toast.error(
+        angkatan
+          ? `Mata kuliah tersebut sudah ada untuk angkatan ${angkatan}.`
+          : "Mata kuliah tersebut sudah ada."
+      );
       return;
     }
 
@@ -283,7 +311,7 @@ export default function AdminTugasPage() {
 
     setMasterData((current) => ({
       ...current,
-      mataKuliah: upsert(current.mataKuliah, id, { nama, kode }),
+      mataKuliah: upsert(current.mataKuliah, id, { nama, kode, angkatan }),
     }));
 
     // Mata kuliah baru langsung jadi yang terpilih. Yang diedit tidak, supaya
@@ -664,7 +692,9 @@ export default function AdminTugasPage() {
                           </ItemTitle>
 
                           <ItemDescription className="text-xs">
-                            {jumlahTugas} tugas
+                            {mk.angkatan
+                              ? `Angkatan ${mk.angkatan} · ${jumlahTugas} tugas`
+                              : `Semua angkatan · ${jumlahTugas} tugas`}
                           </ItemDescription>
                         </ItemContent>
 
@@ -970,6 +1000,25 @@ export default function AdminTugasPage() {
                         setMataKuliahForm((current) => ({
                           ...current,
                           nama: event.target.value,
+                        }))
+                      }
+                    />
+
+                    <FilterSelect
+                      id="angkatanMataKuliah"
+                      label="Angkatan"
+                      value={mataKuliahForm.angkatan}
+                      options={[
+                        { value: SEMUA_ANGKATAN, label: "Semua Angkatan" },
+                        ...angkatanTerurut.map((item) => ({
+                          value: item.tahun,
+                          label: item.tahun,
+                        })),
+                      ]}
+                      onChange={(nilai) =>
+                        setMataKuliahForm((current) => ({
+                          ...current,
+                          angkatan: nilai,
                         }))
                       }
                     />

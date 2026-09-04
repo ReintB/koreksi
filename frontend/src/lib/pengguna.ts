@@ -31,7 +31,12 @@ export function bentukPengguna(
       ? new Date(baris.created_at as string).toISOString()
       : null,
     student: mahasiswa
-      ? { id: mahasiswa.id, nim: mahasiswa.nim, nama: mahasiswa.nama }
+      ? {
+          id: mahasiswa.id,
+          nim: mahasiswa.nim,
+          nama: mahasiswa.nama,
+          angkatan: mahasiswa.angkatan,
+        }
       : null,
   };
 }
@@ -50,7 +55,8 @@ export async function pengguna(id: string) {
 
   const mahasiswa = baris[0].nim
     ? (
-        await sql`SELECT id, nim, nama FROM mahasiswa WHERE nim = ${baris[0].nim}`
+        await sql`SELECT id, nim, nama, angkatan FROM mahasiswa
+                   WHERE nim = ${baris[0].nim}`
       )[0] ?? null
     : null;
 

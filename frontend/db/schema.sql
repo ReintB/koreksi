@@ -129,3 +129,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS submission_nim_tugas_idx
 -- lebih dahulu ke mahasiswa.kelas sebelum tabel lamanya dibuang.
 ALTER TABLE mahasiswa ADD COLUMN IF NOT EXISTS kelas text;
 DROP TABLE IF EXISTS mahasiswa_kelas;
+
+-- ---------- mata kuliah milik satu angkatan ----------
+
+-- Tiap angkatan mengambil mata kuliah praktikum yang berbeda. Penanda itu
+-- ditaruh sebagai kolom pada mata kuliah, bukan tabel penghubung, karena
+-- tugas beserta tenggat dan rubriknya menggantung pada satu baris mata
+-- kuliah: satu baris yang dipakai bersama dua angkatan berarti keduanya ikut
+-- berbagi tenggat yang sama, padahal jelas berbeda. Angkatan berikutnya yang
+-- mengambil mata kuliah bernama sama dibuat sebagai baris tersendiri dengan
+-- tugasnya sendiri.
+--
+-- Boleh kosong, dan kosong berarti berlaku untuk semua angkatan. Baris yang
+-- terlanjur ada belum punya angkatan, dan menyembunyikannya dari semua orang
+-- lebih merugikan daripada menampilkannya terlalu luas.
+ALTER TABLE mata_kuliah ADD COLUMN IF NOT EXISTS angkatan text;

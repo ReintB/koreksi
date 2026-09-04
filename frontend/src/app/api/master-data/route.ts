@@ -10,6 +10,7 @@ const skema = z.object({
       id: z.string().min(1),
       nama: z.string().min(1),
       kode: z.string().nullable(),
+      angkatan: z.string().nullable(),
     })
   ),
   tugas: z.array(
@@ -36,7 +37,8 @@ async function baca() {
   const sql = db();
 
   const [mataKuliah, tugas, kelasPraktikum, angkatan] = await Promise.all([
-    sql`SELECT id, nama, kode FROM mata_kuliah ORDER BY nama`,
+    sql`SELECT id, nama, kode, angkatan FROM mata_kuliah
+         ORDER BY angkatan DESC NULLS FIRST, nama`,
     sql`SELECT id, mata_kuliah_id, nomor, judul, tenggat, rubrik_file_name, rubrik_text
           FROM tugas ORDER BY mata_kuliah_id, nomor`,
     sql`SELECT id, nama FROM kelas_praktikum ORDER BY nama`,
@@ -48,6 +50,7 @@ async function baca() {
       id: b.id,
       nama: b.nama,
       kode: b.kode ?? null,
+      angkatan: b.angkatan ?? null,
     })),
     tugas: tugas.map((b) => ({
       id: b.id,
@@ -125,10 +128,12 @@ export async function PUT(request: Request) {
 
   const perintah = [
     ...data.mataKuliah.map(
-      (item) => sql`INSERT INTO mata_kuliah (id, nama, kode)
-                    VALUES (${item.id}, ${item.nama}, ${item.kode})
+      (item) => sql`INSERT INTO mata_kuliah (id, nama, kode, angkatan)
+                    VALUES (${item.id}, ${item.nama}, ${item.kode}, ${item.angkatan})
                     ON CONFLICT (id) DO UPDATE SET
-                      nama = EXCLUDED.nama, kode = EXCLUDED.kode`
+                      nama = EXCLUDED.nama,
+                      kode = EXCLUDED.kode,
+                      angkatan = EXCLUDED.angkatan`
     ),
     ...data.kelasPraktikum.map(
       (item) => sql`INSERT INTO kelas_praktikum (id, nama) VALUES (${item.id}, ${item.nama})
