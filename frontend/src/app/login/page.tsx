@@ -8,11 +8,17 @@ import { buttonVariants } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
+/**
+ * Empat langkah ini adalah janji pertama yang dibaca mahasiswa, jadi isinya
+ * dibatasi pada yang benar-benar berjalan hari ini. Penilaian otomatis belum
+ * terpasang; menuliskannya di sini hanya membuat mahasiswa menunggu hasil
+ * yang tidak akan datang, lalu menghubungi asisten karena mengira rusak.
+ */
 const langkah = [
-  "Masuk memakai akun Google",
-  "Admin menghubungkan akun ke NIM roster",
-  "Kirim video YouTube untuk diproses otomatis",
-  "Nilai, evaluasi rubrik, transkrip, dan DOCX tersimpan",
+  "Masuk dengan akun Google",
+  "Admin menautkan akun Anda ke NIM roster",
+  "Kirim tautan video YouTube untuk tiap tugas",
+  "Nilai dan catatan koreksi muncul di halaman Riwayat",
 ];
 
 export default function LoginPage() {
@@ -31,10 +37,11 @@ export default function LoginPage() {
         <span className="font-medium">Koreksi Tugas</span>
         <div>
           <h1 className="max-w-[16ch] text-3xl font-semibold leading-tight tracking-tight text-balance xl:text-4xl">
-            Sistem koreksi otomatis tugas video praktikum
+            Pengumpulan dan koreksi tugas video praktikum
           </h1>
           <p className="mt-4 max-w-[46ch] text-sm leading-relaxed text-muted-foreground">
-            Identitas pengguna diverifikasi Google. Materi, kelas, submission, nilai, dan hasil koreksi disimpan terpusat di PostgreSQL.
+            Identitas diverifikasi Google. Mata kuliah, kelas praktikum,
+            pengumpulan, dan nilai tersimpan terpusat.
           </p>
           <ol className="mt-10 max-w-sm">
             {langkah.map((step, index) => (
@@ -47,14 +54,25 @@ export default function LoginPage() {
         </div>
         <p className="text-xs text-muted-foreground">Teknologi Rekayasa Otomasi</p>
       </div>
-      <div className="flex w-full flex-col items-center justify-center px-6 lg:w-1/2">
+
+      {/* Kolom kanan adalah satu-satunya isi halaman di bawah lg, jadi landmark
+          utama halaman melekat padanya. Tanpa <main> pembaca layar tidak punya
+          jalan pintas ke isi, dan audit aksesibilitas menandainya. */}
+      <main className="flex w-full flex-col items-center justify-center px-6 py-12 lg:w-1/2">
         <div className="w-full max-w-sm">
+          {/* Panel kiri disembunyikan di bawah lg, sehingga tanpa dua baris ini
+              pengguna ponsel tidak diberi tahu sama sekali sistem apa yang
+              sedang mereka masuki. */}
           <div className="mb-8 text-center lg:hidden">
             <span className="font-medium">Koreksi Tugas</span>
+            <p className="mt-1 text-sm text-muted-foreground text-balance">
+              Pengumpulan tugas video praktikum Teknologi Rekayasa Otomasi.
+            </p>
           </div>
+
           <h2 className="mb-1 text-2xl font-semibold tracking-tight">Masuk</h2>
           <p className="mb-6 text-sm text-muted-foreground">
-            Gunakan akun Google untuk masuk ke sistem koreksi.
+            Gunakan akun Google kampus Anda.
           </p>
 
           {authenticated && user ? (
@@ -62,12 +80,14 @@ export default function LoginPage() {
               <p className="font-medium">{user.name}</p>
               <p className="mt-1 text-sm text-muted-foreground">{user.email}</p>
               <p className="mt-3 text-xs text-muted-foreground">
-                Role: {user.role === "admin" ? "Admin" : "Mahasiswa"}
-                {user.student ? ` · NIM ${user.student.nim}` : " · NIM belum dihubungkan admin"}
+                Peran: {user.role === "admin" ? "Admin" : "Mahasiswa"}
+                {user.student
+                  ? ` · NIM ${user.student.nim}`
+                  : " · NIM belum ditautkan admin"}
               </p>
               <Link
                 href={user.role === "admin" ? "/admin" : "/"}
-                className={cn(buttonVariants(), "mt-4 w-full")}
+                className={cn(buttonVariants(), "mt-4 h-11 w-full")}
               >
                 Lanjut ke Sistem
               </Link>
@@ -80,18 +100,27 @@ export default function LoginPage() {
               {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
               <a
                 href="/api/auth/google/login?next=/"
-                className={cn(buttonVariants(), "w-full")}
+                // Selama sesi masih diperiksa, tautannya tetap hidup kalau
+                // hanya labelnya yang diganti — dan klik pada saat itu membawa
+                // pengguna ke Google padahal ia mungkin sudah masuk.
+                aria-disabled={loading || undefined}
+                className={cn(
+                  buttonVariants(),
+                  "h-11 w-full",
+                  loading && "pointer-events-none opacity-70"
+                )}
               >
                 <LogIn className="size-4" />
                 {loading ? "Memeriksa sesi..." : "Masuk dengan Google"}
               </a>
-              <p className="mt-4 text-center text-xs leading-relaxed text-muted-foreground">
-                Akun baru akan muncul di halaman Admin → Pengguna. Admin menghubungkan akun mahasiswa ke NIM roster sebelum pengumpulan tugas dapat dilakukan.
+              <p className="mt-4 text-center text-xs leading-relaxed text-muted-foreground text-pretty">
+                Setelah masuk, admin menautkan akun Anda ke NIM roster.
+                Pengiriman tugas terbuka sesudah penautan itu.
               </p>
             </>
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
