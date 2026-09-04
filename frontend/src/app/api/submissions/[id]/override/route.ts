@@ -35,10 +35,14 @@ export async function POST(
 
   const sql = db();
 
+  // Status ikut berpindah, bukan hanya kolom nilainya. Tanpa ini baris yang
+  // sudah dinilai tetap berbunyi "Menunggu dinilai" sambil memajang angkanya,
+  // tidak bisa dibuka, dan asisten kehilangan jejak sudah menilai sampai mana.
   const baris = await sql`
     UPDATE submission
        SET skor_manual = ${isi.data.skor},
-           catatan_timpa = ${isi.data.catatan?.trim() || null}
+           catatan_timpa = ${isi.data.catatan?.trim() || null},
+           status = 'dinilai_manual'
      WHERE id = ${id}
     RETURNING id
   `;
@@ -64,9 +68,14 @@ export async function DELETE(
   const { id } = await params;
   const sql = db();
 
+  // Statusnya dikembalikan ke keadaan sebelum ditimpa: "selesai" bila mesin
+  // pernah memberi nilai, "menunggu" bila belum pernah — bukan dibiarkan
+  // tetap "dinilai_manual" pada baris yang sudah tidak punya nilai manual.
   const baris = await sql`
     UPDATE submission
-       SET skor_manual = NULL, catatan_timpa = NULL
+       SET skor_manual = NULL,
+           catatan_timpa = NULL,
+           status = CASE WHEN skor_otomatis IS NULL THEN 'menunggu' ELSE 'selesai' END
      WHERE id = ${id}
     RETURNING id
   `;

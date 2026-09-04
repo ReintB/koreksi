@@ -85,6 +85,7 @@ import {
 import { TenggatPicker } from "@/components/tenggat-picker";
 import { TenggatText } from "@/components/tenggat-text";
 import { useMasterData } from "@/hooks/use-master-data";
+import { useAdminSubmissions } from "@/hooks/use-submissions";
 import { adaDuplikat, hapusById, upsert } from "@/lib/koleksi";
 import {
   createMasterDataId,
@@ -208,6 +209,11 @@ function AksiDialog({
 export default function AdminTugasPage() {
   const { data, setMasterData } = useMasterData();
 
+  // Dipakai konfirmasi hapus untuk menghitung pengumpulan yang ikut terancam,
+  // supaya peringatannya muncul sebelum kliknya, bukan sebagai penolakan
+  // server sesudah barisnya terlanjur lenyap dari layar.
+  const { data: submissions } = useAdminSubmissions();
+
   const [section, setSection] = useState<Section>("tugas");
   const [activeMataKuliahId, setActiveMataKuliahId] = useState("");
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -309,22 +315,21 @@ export default function AdminTugasPage() {
     const lama = editingId("mataKuliah");
     const id = lama ?? createMasterDataId("mk");
 
-    setMasterData((current) => ({
-      ...current,
-      mataKuliah: upsert(current.mataKuliah, id, { nama, kode, angkatan }),
-    }));
+    setMasterData(
+      (current) => ({
+        ...current,
+        mataKuliah: upsert(current.mataKuliah, id, { nama, kode, angkatan }),
+      }),
+      lama
+        ? "Mata kuliah berhasil diperbarui."
+        : "Mata kuliah berhasil ditambahkan."
+    );
 
     // Mata kuliah baru langsung jadi yang terpilih. Yang diedit tidak, supaya
     // mengedit dari daftar tidak diam-diam memindahkan pilihan asisten.
     if (!lama) {
       setActiveMataKuliahId(id);
     }
-
-    toast.success(
-      lama
-        ? "Mata kuliah berhasil diperbarui."
-        : "Mata kuliah berhasil ditambahkan."
-    );
 
     setEditor(null);
   }
@@ -401,19 +406,18 @@ export default function AdminTugasPage() {
     const lama = editingId("tugas");
     const id = lama ?? createMasterDataId("tugas");
 
-    setMasterData((current) => ({
-      ...current,
-      tugas: upsert(current.tugas, id, {
-        mataKuliahId: tugasForm.mataKuliahId,
-        nomor,
-        judul,
-        tenggat,
-        rubrikFileName: tugasForm.rubrikFileName,
-        rubrikText: tugasForm.rubrikText,
+    setMasterData(
+      (current) => ({
+        ...current,
+        tugas: upsert(current.tugas, id, {
+          mataKuliahId: tugasForm.mataKuliahId,
+          nomor,
+          judul,
+          tenggat,
+          rubrikFileName: tugasForm.rubrikFileName,
+          rubrikText: tugasForm.rubrikText,
+        }),
       }),
-    }));
-
-    toast.success(
       lama ? "Tugas berhasil diperbarui." : "Tugas berhasil ditambahkan."
     );
 
@@ -492,12 +496,11 @@ export default function AdminTugasPage() {
     const lama = editingId("kelas");
     const id = lama ?? createMasterDataId("kelas");
 
-    setMasterData((current) => ({
-      ...current,
-      kelasPraktikum: upsert(current.kelasPraktikum, id, { nama }),
-    }));
-
-    toast.success(
+    setMasterData(
+      (current) => ({
+        ...current,
+        kelasPraktikum: upsert(current.kelasPraktikum, id, { nama }),
+      }),
       lama ? "Kelas berhasil diperbarui." : "Kelas berhasil ditambahkan."
     );
 
@@ -540,12 +543,11 @@ export default function AdminTugasPage() {
     const lama = editingId("angkatan");
     const id = lama ?? createMasterDataId("angkatan");
 
-    setMasterData((current) => ({
-      ...current,
-      angkatan: upsert(current.angkatan, id, { tahun }),
-    }));
-
-    toast.success(
+    setMasterData(
+      (current) => ({
+        ...current,
+        angkatan: upsert(current.angkatan, id, { tahun }),
+      }),
       lama ? "Angkatan berhasil diperbarui." : "Angkatan berhasil ditambahkan."
     );
 
@@ -579,9 +581,7 @@ export default function AdminTugasPage() {
         case "angkatan":
           return { ...current, angkatan: hapusById(current.angkatan, id) };
       }
-    });
-
-    toast.success("Data berhasil dihapus.");
+    }, "Data berhasil dihapus.");
 
     setDeleteTarget(null);
   }
@@ -591,6 +591,23 @@ export default function AdminTugasPage() {
       ? data.tugas.filter((item) => item.mataKuliahId === deleteTarget.id)
           .length
       : 0;
+
+  /**
+   * Berapa pengumpulan yang ikut terhapus bersama sasaran ini.
+   *
+   * Server memang menolak perubahan semacam itu, tetapi penolakannya baru
+   * datang setelah asisten menekan Hapus dan melihat barisnya lenyap. Angka
+   * ini memindahkan peringatannya ke sebelum kliknya, bukan sesudah.
+   */
+  const relatedSubmissionCount = !deleteTarget
+    ? 0
+    : deleteTarget.kind === "mataKuliah"
+      ? submissions.filter(
+          (item) => item.mataKuliahId === deleteTarget.id
+        ).length
+      : deleteTarget.kind === "tugas"
+        ? submissions.filter((item) => item.tugasId === deleteTarget.id).length
+        : 0;
 
   const simpanEditor: Record<EditorKind, () => void> = {
     mataKuliah: saveMataKuliah,
@@ -1190,15 +1207,28 @@ export default function AdminTugasPage() {
 
           {deleteTarget?.kind === "mataKuliah" && relatedTaskCount > 0 && (
             <div className="rounded-md border p-3 text-sm">
-              Mata kuliah ini memiliki <strong>{relatedTaskCount} tugas</strong>
-              . Tugas yang terkait juga akan dihapus.
+              Mata kuliah ini memiliki{" "}
+              <strong>{relatedTaskCount} tugas</strong>. Tugas yang terkait juga
+              akan dihapus.
+            </div>
+          )}
+
+          {relatedSubmissionCount > 0 && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+              Ada <strong>{relatedSubmissionCount} pengumpulan</strong>{" "}
+              mahasiswa di bawahnya, beserta nilainya. Pengumpulan yang sudah
+              masuk tidak bisa dihapus — pindahkan atau kosongkan lebih dahulu.
             </div>
           )}
 
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
 
-            <AlertDialogAction variant="destructive" onClick={confirmDelete}>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={relatedSubmissionCount > 0}
+            >
               <Trash2 className="size-4" />
               Hapus
             </AlertDialogAction>

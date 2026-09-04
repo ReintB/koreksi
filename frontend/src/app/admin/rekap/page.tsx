@@ -1,14 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { CircleDashed, FileDown, UserX } from "lucide-react";
+import { CircleDashed, FileDown, PencilLine, UserX } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
+import { DataError } from "@/components/common/data-error";
 import { EmptyState } from "@/components/common/empty-state";
 import { FilterSelect } from "@/components/filter-select";
 import { Navbar } from "@/components/navbar";
 import { PageHeader } from "@/components/page-header";
+import {
+  ScoreOverrideDialog,
+  type ScoreOverrideTarget,
+} from "@/components/score-override-dialog";
 import { SubmissionDetailDialog } from "@/components/submission-detail-dialog";
 import { TenggatText } from "@/components/tenggat-text";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +37,11 @@ import {
 
 import { useMasterData } from "@/hooks/use-master-data";
 import { labelMataKuliah } from "@/lib/master-data";
-import { useAdminSubmissions, useStudents } from "@/hooks/use-submissions";
+import {
+  useAdminSubmissions,
+  useStudents,
+  type AdminApiSubmission,
+} from "@/hooks/use-submissions";
 import { csvFilename, downloadCsv, toCsv } from "@/lib/csv";
 import { buildRekap, rekapCounts, type RekapRow } from "@/lib/rekap";
 import { unduhHasil } from "@/lib/unduh-hasil";
@@ -148,13 +157,18 @@ export default function AdminRekapPage() {
   const [kelas, setKelas] = useState(SEMUA_KELAS);
   const [tampilan, setTampilan] = useState<Tampilan>("semua");
   const [selected, setSelected] = useState<AdminSubmission | null>(null);
+  const [ubahSkor, setUbahSkor] = useState<ScoreOverrideTarget | null>(null);
 
   const mataKuliah =
     data.mataKuliah.find((item) => item.id === mataKuliahId) ??
     data.mataKuliah[0] ??
     null;
 
-  const { data: submissions } = useAdminSubmissions();
+  const {
+    data: submissions,
+    error: galatSubmissions,
+    refresh: muatUlangSubmissions,
+  } = useAdminSubmissions();
   const { data: mahasiswa } = useStudents();
 
   const tugasMataKuliah = data.tugas
@@ -169,8 +183,8 @@ export default function AdminRekapPage() {
   const rows =
     mataKuliah && tugas
       ? buildRekap(mahasiswa, submissions, {
-          mataKuliah: mataKuliah.nama,
-          tugasKe: tugas.nomor,
+          mataKuliahId: mataKuliah.id,
+          tugasId: tugas.id,
           kelas: kelas === SEMUA_KELAS ? null : kelas,
           tenggat: tugas.tenggat,
         })
@@ -203,6 +217,35 @@ export default function AdminRekapPage() {
       label: `Kelas ${item.nama}`,
     })),
   ];
+
+  function targetSkor(row: RekapRow<AdminApiSubmission>): ScoreOverrideTarget | null {
+    const kiriman = row.submission;
+    if (!kiriman) return null;
+
+    return {
+      id: kiriman.id,
+      namaMahasiswa: row.mahasiswa.nama,
+      tugasKe: kiriman.tugasKe,
+      judulTugas: kiriman.judulTugas,
+      skorOtomatis: kiriman.skorOtomatis,
+      skorManual: kiriman.ditimpa ? kiriman.skor : null,
+      catatanTimpa: kiriman.catatanTimpa,
+    };
+  }
+
+  // Baris berikutnya yang sudah mengumpulkan tetapi belum bernilai, dihitung
+  // dari daftar yang sedang tampil. Null berarti kelasnya tuntas, dan tombol
+  // "Simpan & lanjut" ikut hilang alih-alih menyimpan lalu tidak ke mana-mana.
+  function lanjutSetelah(idSekarang: string) {
+    const urut = terlihat.filter((row) => row.submission !== null);
+    const posisi = urut.findIndex((row) => row.submission?.id === idSekarang);
+
+    return (
+      urut
+        .slice(posisi + 1)
+        .find((row) => row.submission?.skor === null) ?? null
+    );
+  }
 
   function handleExportCsv() {
     if (!mataKuliah || !tugas) return;
@@ -262,6 +305,11 @@ export default function AdminRekapPage() {
               Ekspor CSV
             </Button>
           }
+        />
+
+        <DataError
+          pesan={galatSubmissions}
+          onRetry={() => void muatUlangSubmissions()}
         />
 
         {data.mataKuliah.length === 0 ? (
@@ -437,8 +485,28 @@ export default function AdminRekapPage() {
                                     : "—"}
                                 </TableCell>
 
+                                {/* Rekap adalah tempat asisten benar-benar
+                                    bekerja: ia sudah menyaring ke satu tugas,
+                                    satu kelas, dan sudah tahu siapa yang belum
+                                    mengirim. Sebelumnya menilai justru harus
+                                    dilakukan di halaman lain. */}
                                 <TableCell className="whitespace-nowrap text-right">
-                                  <ScoreValue skor={submission?.skor ?? null} />
+                                  {submission ? (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      aria-label={`Ubah skor ${row.mahasiswa.nama}`}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        setUbahSkor(targetSkor(row));
+                                      }}
+                                    >
+                                      <ScoreValue skor={submission.skor} />
+                                      <PencilLine className="size-3.5 text-muted-foreground" />
+                                    </Button>
+                                  ) : (
+                                    <ScoreValue skor={null} />
+                                  )}
                                 </TableCell>
                               </TableRow>
                             );
@@ -458,6 +526,21 @@ export default function AdminRekapPage() {
         submission={selected}
         onClose={() => setSelected(null)}
         onDownload={unduhHasil}
+      />
+
+      <ScoreOverrideDialog
+        target={ubahSkor}
+        onClose={() => setUbahSkor(null)}
+        onLanjut={
+          ubahSkor && lanjutSetelah(ubahSkor.id)
+            ? () => {
+                const berikutnya = ubahSkor
+                  ? lanjutSetelah(ubahSkor.id)
+                  : null;
+                setUbahSkor(berikutnya ? targetSkor(berikutnya) : null);
+              }
+            : null
+        }
       />
     </>
   );

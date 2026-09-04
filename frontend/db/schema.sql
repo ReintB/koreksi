@@ -144,3 +144,17 @@ DROP TABLE IF EXISTS mahasiswa_kelas;
 -- terlanjur ada belum punya angkatan, dan menyembunyikannya dari semua orang
 -- lebih merugikan daripada menampilkannya terlalu luas.
 ALTER TABLE mata_kuliah ADD COLUMN IF NOT EXISTS angkatan text;
+
+-- ---------- status untuk nilai yang dimasukkan asisten ----------
+
+-- Penimpaan skor semula hanya menulis skor_manual dan membiarkan status tetap
+-- 'menunggu', sehingga baris yang sudah dinilai berbunyi "Menunggu" sambil
+-- memajang angkanya, tidak bisa dibuka, dan asisten kehilangan jejak sudah
+-- menilai sampai mana. Status ini memisahkan "belum disentuh siapa pun" dari
+-- "sudah dinilai orang, bukan mesin".
+--
+-- Ditulis sebagai DROP lalu ADD, bukan ALTER, karena CHECK constraint tidak
+-- mengenal IF NOT EXISTS; bentuk ini tetap aman dijalankan berulang.
+ALTER TABLE submission DROP CONSTRAINT IF EXISTS submission_status_check;
+ALTER TABLE submission ADD CONSTRAINT submission_status_check
+  CHECK (status IN ('menunggu', 'diproses', 'dinilai_manual', 'selesai', 'gagal'));

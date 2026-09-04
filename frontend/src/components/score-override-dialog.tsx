@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { RotateCcw } from "lucide-react";
+import { ArrowRight, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { notifyApiRefresh } from "@/hooks/use-api-data";
@@ -31,9 +31,19 @@ export type ScoreOverrideTarget = {
 export function ScoreOverrideDialog({
   target,
   onClose,
+  onLanjut,
 }: {
   target: ScoreOverrideTarget | null;
   onClose: () => void;
+  /**
+   * Berpindah ke pengumpulan berikutnya yang belum bernilai tanpa menutup
+   * dialog. Menilai satu kelas berarti mengulang buka-ketik-simpan-tutup
+   * sebanyak jumlah mahasiswanya; ini memangkasnya menjadi satu alur.
+   *
+   * Tombolnya hanya muncul bila pemanggil menyediakannya, yaitu ketika masih
+   * ada baris tersisa yang belum dinilai.
+   */
+  onLanjut?: (() => void) | null;
 }) {
   return (
     <Dialog
@@ -44,7 +54,12 @@ export function ScoreOverrideDialog({
     >
       <DialogContent className="sm:max-w-md">
         {target && (
-          <FormIsi key={target.id} target={target} onClose={onClose} />
+          <FormIsi
+            key={target.id}
+            target={target}
+            onClose={onClose}
+            onLanjut={onLanjut}
+          />
         )}
       </DialogContent>
     </Dialog>
@@ -54,9 +69,11 @@ export function ScoreOverrideDialog({
 function FormIsi({
   target,
   onClose,
+  onLanjut,
 }: {
   target: ScoreOverrideTarget;
   onClose: () => void;
+  onLanjut?: (() => void) | null;
 }) {
   const [skor, setSkor] = useState(
     String(target.skorManual ?? target.skorOtomatis ?? "")
@@ -66,8 +83,7 @@ function FormIsi({
   const [saving, setSaving] = useState(false);
   const sudahDitimpa = target.skorManual !== null && target.skorManual !== undefined;
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function simpan(lanjut: boolean) {
     const pesan = validateSkor(skor);
     if (pesan) {
       setError(pesan);
@@ -84,12 +100,19 @@ function FormIsi({
       toast.success("Skor diperbarui.", {
         description: `${target.namaMahasiswa} — Tugas ${target.tugasKe} kini bernilai ${skor.trim()}/100.`,
       });
-      onClose();
+
+      if (lanjut && onLanjut) onLanjut();
+      else onClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Gagal mengubah skor.");
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void simpan(false);
   }
 
   async function handleReset() {
@@ -169,6 +192,19 @@ function FormIsi({
         <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
           Batal
         </Button>
+
+        {onLanjut && (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => void simpan(true)}
+            disabled={saving}
+          >
+            Simpan &amp; lanjut
+            <ArrowRight className="size-4" />
+          </Button>
+        )}
+
         <Button type="submit" disabled={saving}>
           {saving ? "Menyimpan..." : "Simpan Skor"}
         </Button>

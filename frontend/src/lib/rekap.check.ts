@@ -48,7 +48,9 @@ const submissions = [
     namaMahasiswa: "Budi",
     nim: "0001",
     mataKuliah: "Praktikum Alpro",
+    mataKuliahId: "mk-alpro",
     tugasKe: 1,
+    tugasId: "tugas-alpro-1",
     dikirimPada: "2026-08-20T13:42:00+07:00",
   },
   // Tugas lain: tidak boleh menutup Tugas 1.
@@ -58,7 +60,9 @@ const submissions = [
     namaMahasiswa: "Ani",
     nim: "0002",
     mataKuliah: "Praktikum Alpro",
+    mataKuliahId: "mk-alpro",
     tugasKe: 2,
+    tugasId: "tugas-alpro-2",
     dikirimPada: "2026-08-20T13:42:00+07:00",
   },
   // Mata kuliah lain: juga tidak boleh menutup Tugas 1 Alpro.
@@ -69,14 +73,31 @@ const submissions = [
     nim: "0003",
     kelasPraktikum: "B",
     mataKuliah: "Praktikum Basis Data",
+    mataKuliahId: "mk-basis-data",
     tugasKe: 1,
+    tugasId: "tugas-basis-data-1",
     dikirimPada: "2026-08-22T18:10:00+07:00",
+  },
+  // Nama mata kuliah dan nomor tugasnya sama persis dengan yang dicari, tetapi
+  // idnya berbeda: ini penyelenggaraan untuk angkatan lain. Baris inilah yang
+  // dahulu salah dianggap menutup Tugas 1 milik Budi, karena pencocokannya
+  // memakai nama dan nomor.
+  {
+    ...dasar,
+    id: "s-4",
+    namaMahasiswa: "Budi",
+    nim: "0001",
+    mataKuliah: "Praktikum Alpro",
+    mataKuliahId: "mk-alpro-2025",
+    tugasKe: 1,
+    tugasId: "tugas-alpro-2025-1",
+    dikirimPada: "2026-08-20T13:42:00+07:00",
   },
 ];
 
 const filter = {
-  mataKuliah: "Praktikum Alpro",
-  tugasKe: 1,
+  mataKuliahId: "mk-alpro",
+  tugasId: "tugas-alpro-1",
   kelas: "A",
   tenggat: "2026-08-21T23:59:00+07:00",
 };
@@ -92,6 +113,9 @@ assert.deepEqual(
 
 // Yang belum mengumpulkan naik ke atas.
 assert.equal(kelasA[0].submission, null);
+
+// Yang cocok adalah baris dengan id tugas yang sama, bukan baris bernama sama
+// dari penyelenggaraan angkatan lain.
 assert.equal(kelasA[1].submission?.id, "s-1");
 
 // Pengumpulan tepat waktu tidak ditandai terlambat.

@@ -21,31 +21,39 @@ export type Mahasiswa = {
   angkatan: string;
 };
 
-export type RekapRow = {
+/**
+ * Generik atas bentuk pengumpulannya supaya baris rekap tetap membawa kolom
+ * tambahan milik pemanggil — halaman rekap perlu `skorOtomatis` dan
+ * `catatanTimpa` untuk membuka dialog Ubah Skor langsung dari tabelnya.
+ */
+export type RekapRow<S extends AdminSubmission = AdminSubmission> = {
   mahasiswa: Mahasiswa;
   /** null berarti belum mengumpulkan — inti dari halaman rekap. */
-  submission: AdminSubmission | null;
+  submission: S | null;
   terlambat: boolean;
 };
 
 export type RekapFilter = {
-  mataKuliah: string;
-  tugasKe: number;
+  mataKuliahId: string;
+  tugasId: string;
   /** null berarti semua kelas. */
   kelas: string | null;
   tenggat: string | null;
 };
 
 /**
- * Dicocokkan lewat NIM + nama mata kuliah + nomor tugas karena itulah yang
- * dimiliki pengumpulan saat ini. Setelah backend ada, ganti dengan join
- * `tugasId` dan `mahasiswaId` — bentuk fungsinya tidak perlu berubah.
+ * Dicocokkan lewat NIM + id mata kuliah + id tugas.
+ *
+ * Semula pencocokannya memakai nama mata kuliah dan nomor tugas. Keduanya
+ * bisa diubah asisten dari halaman Pengaturan Tugas, dan begitu diubah
+ * seluruh pengumpulan lama berhenti cocok — lenyap dari rekap tanpa pesan apa
+ * pun, seolah kelasnya memang belum mengumpulkan.
  */
-export function buildRekap(
+export function buildRekap<S extends AdminSubmission>(
   mahasiswa: Mahasiswa[],
-  submissions: AdminSubmission[],
-  { mataKuliah, tugasKe, kelas, tenggat }: RekapFilter
-): RekapRow[] {
+  submissions: S[],
+  { mataKuliahId, tugasId, kelas, tenggat }: RekapFilter
+): RekapRow<S>[] {
   const peserta =
     kelas === null
       ? mahasiswa
@@ -57,8 +65,8 @@ export function buildRekap(
         submissions.find(
           (kiriman) =>
             kiriman.nim === item.nim &&
-            kiriman.mataKuliah === mataKuliah &&
-            kiriman.tugasKe === tugasKe
+            kiriman.mataKuliahId === mataKuliahId &&
+            kiriman.tugasId === tugasId
         ) ?? null;
 
       return {

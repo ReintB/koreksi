@@ -4,6 +4,7 @@ import {
   CircleDashed,
   Clock3,
   LoaderCircle,
+  PencilLine,
   TriangleAlert,
   XCircle,
 } from "lucide-react";
@@ -26,6 +27,9 @@ const statusIcon: Record<
 > = {
   menunggu: Clock3,
   diproses: LoaderCircle,
+  // Pena, bukan centang: yang menilai adalah asisten, dan bedanya dengan
+  // hasil mesin harus terbaca sekilas dari barisnya.
+  dinilai_manual: PencilLine,
   selesai: CheckCircle2,
   gagal: CircleAlert,
 };

@@ -52,6 +52,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { DataError } from "@/components/common/data-error";
 import { EmptyState } from "@/components/common/empty-state";
 import { FilterSelect } from "@/components/filter-select";
 import {
@@ -95,10 +96,13 @@ import {
 
 import { cn } from "@/lib/utils";
 
+// "diproses" sengaja tidak ditawarkan: mesin koreksi belum terpasang, jadi
+// tidak ada pengumpulan yang pernah berada di status itu, dan menyediakannya
+// hanya membuat asisten menyaring ke daftar yang selalu kosong.
 const daftarStatus = [
   SEMUA,
   "menunggu",
-  "diproses",
+  "dinilai_manual",
   "selesai",
   "gagal",
 ] as const;
@@ -115,7 +119,16 @@ type AdminRow = AdminSubmission & {
   terlambat: boolean;
 };
 
-const PER_PAGE = 10;
+// Menilai satu kelas berarti melewati seluruh daftarnya. Dengan 10 baris,
+// 120 pengumpulan menjadi 12 halaman; 25 menyamakannya dengan roster, dan
+// pilihan yang lebih besar disediakan untuk kelas yang lebih besar.
+const PER_PAGE_PILIHAN = ["25", "50", "100"] as const;
+const PER_PAGE_BAWAAN = "25";
+
+const opsiPerPage = PER_PAGE_PILIHAN.map((nilai) => ({
+  value: nilai,
+  label: `${nilai} baris`,
+}));
 
 function SortableHead({
   label,
@@ -175,9 +188,14 @@ export default function AdminPage() {
 
   const [selected, setSelected] = useState<AdminRow | null>(null);
   const [ubahSkor, setUbahSkor] = useState<ScoreOverrideTarget | null>(null);
+  const [perPage, setPerPage] = useState<string>(PER_PAGE_BAWAAN);
 
   const { data } = useMasterData();
-  const { data: submissions } = useAdminSubmissions();
+  const {
+    data: submissions,
+    error: galatSubmissions,
+    refresh: muatUlangSubmissions,
+  } = useAdminSubmissions();
 
   // Diturunkan dari master data supaya mata kuliah atau kelas yang baru
   // ditambahkan di /admin/tugas langsung bisa dipakai menyaring di sini.
@@ -229,7 +247,30 @@ export default function AdminPage() {
     totalHalaman,
     mulai,
     items: paged,
-  } = potongHalaman(sorted, page, PER_PAGE);
+  } = potongHalaman(sorted, page, Number(perPage));
+
+  /**
+   * Pengumpulan berikutnya yang sudah masuk tetapi belum bernilai, dihitung
+   * dari seluruh hasil penyaringan — bukan hanya halaman yang tampak, supaya
+   * "Simpan & lanjut" tidak berhenti di batas halaman.
+   */
+  function lanjutSetelah(idSekarang: string) {
+    const posisi = sorted.findIndex((row) => row.id === idSekarang);
+
+    return sorted.slice(posisi + 1).find((row) => row.skor === null) ?? null;
+  }
+
+  function targetSkor(row: AdminRow): ScoreOverrideTarget {
+    return {
+      id: row.id,
+      namaMahasiswa: row.namaMahasiswa,
+      tugasKe: row.tugasKe,
+      judulTugas: row.judulTugas,
+      skorOtomatis: row.skorOtomatis,
+      skorManual: row.ditimpa ? row.skor : null,
+      catatanTimpa: row.catatanTimpa,
+    };
+  }
 
   const filterAktif = adaFilterAktif(filter);
 
@@ -365,6 +406,18 @@ export default function AdminPage() {
             </Button>
           )}
 
+          <FilterSelect
+            id="filter-per-halaman"
+            label="Baris"
+            value={perPage}
+            options={opsiPerPage}
+            onChange={(nilai) => {
+              setPerPage(nilai);
+              setPage(1);
+            }}
+            className="w-full sm:w-32"
+          />
+
           <p
             aria-live="polite"
             className="tnum ml-auto pb-2 text-sm text-muted-foreground"
@@ -376,6 +429,11 @@ export default function AdminPage() {
                 } pengumpulan`}
           </p>
         </div>
+
+        <DataError
+          pesan={galatSubmissions}
+          onRetry={() => void muatUlangSubmissions()}
+        />
 
         <StatusSummary items={sorted} />
 
@@ -644,7 +702,20 @@ export default function AdminPage() {
         </p>
       </main>
 
-      <ScoreOverrideDialog target={ubahSkor} onClose={() => setUbahSkor(null)} />
+      <ScoreOverrideDialog
+        target={ubahSkor}
+        onClose={() => setUbahSkor(null)}
+        onLanjut={
+          ubahSkor && lanjutSetelah(ubahSkor.id)
+            ? () => {
+                const berikutnya = ubahSkor
+                  ? lanjutSetelah(ubahSkor.id)
+                  : null;
+                setUbahSkor(berikutnya ? targetSkor(berikutnya) : null);
+              }
+            : null
+        }
+      />
 
       <SubmissionDetailDialog
         submission={selected}

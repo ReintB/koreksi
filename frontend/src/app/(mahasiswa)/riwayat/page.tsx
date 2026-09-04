@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+import { DataError } from "@/components/common/data-error";
 import { EmptyState } from "@/components/common/empty-state";
 import {
   ScoreValue,
@@ -40,8 +41,18 @@ import { cn } from "@/lib/utils";
 export default function RiwayatPage() {
   const [selected, setSelected] = useState<MahasiswaSubmission | null>(null);
   const { user } = useAuth();
-  const { data: submissions } = useStudentSubmissions(user?.student?.nim ?? null);
-  const empty = submissions.length === 0;
+  const {
+    data: submissions,
+    loading,
+    error,
+    refresh,
+  } = useStudentSubmissions(user?.student?.nim ?? null);
+
+  // `loading` ikut diperiksa supaya halaman tidak lebih dulu menyatakan
+  // mahasiswanya belum mengumpulkan apa pun, lalu meralatnya sedetik kemudian
+  // ketika datanya benar-benar datang. Pada koneksi lambat ralat itu sempat
+  // terbaca, dan yang terbaca adalah kabar terburuk.
+  const empty = !loading && submissions.length === 0;
 
   return (
     <>
@@ -52,6 +63,8 @@ export default function RiwayatPage() {
           title="Riwayat Pengumpulan"
           description="Pantau status proses dan lihat hasil koreksi tugas yang telah dikirim."
         />
+
+        <DataError pesan={error} onRetry={() => void refresh()} />
 
         <StatusSummary items={submissions} />
 

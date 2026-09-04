@@ -96,6 +96,12 @@ async function bacaPengumpulan(nim?: string) {
       id: b.id,
       namaMahasiswa: b.nama_mahasiswa,
       nim: b.nim,
+      // Id ikut dikirim karena rekap perlu mencocokkan pengumpulan dengan
+      // tugas yang sedang dilihat. Sebelumnya pencocokan memakai nama mata
+      // kuliah, sehingga mengganti nama satu mata kuliah membuat seluruh
+      // pengumpulan lamanya hilang dari rekap tanpa pesan apa pun.
+      mataKuliahId: b.mata_kuliah_id,
+      tugasId: b.tugas_id,
       // Kelas yang belum ditetapkan ditandai "-", sama seperti yang dipakai
       // rekap, supaya penyaringan kelas tidak perlu menangani null.
       kelasPraktikum: b.kelas ?? "-",

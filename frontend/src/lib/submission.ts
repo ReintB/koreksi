@@ -1,6 +1,15 @@
+/**
+ * `dinilai_manual` adalah nilai yang dimasukkan asisten lewat Ubah Skor.
+ *
+ * Sebelum ada status ini, penimpaan skor hanya menulis kolom nilai dan status
+ * tetap "menunggu" — sehingga barisnya berbunyi "Menunggu" sekaligus memajang
+ * angka 85, tidak bisa dibuka, dan asisten kehilangan jejak sudah menilai
+ * sampai mana.
+ */
 export type StatusSubmission =
   | "menunggu"
   | "diproses"
+  | "dinilai_manual"
   | "selesai"
   | "gagal";
 
@@ -35,6 +44,14 @@ export type AdminSubmission = SubmissionDetailData & {
   namaMahasiswa: string;
   nim: string;
   kelasPraktikum: string;
+  /**
+   * Dipakai rekap untuk mencocokkan pengumpulan dengan tugas yang dipilih.
+   *
+   * Opsional karena data contoh di dummy-data.ts tidak memilikinya; yang
+   * datang dari API selalu punya, dan AdminApiSubmission menuntutnya.
+   */
+  mataKuliahId?: string;
+  tugasId?: string;
 };
 
 /** Pengumpulan dari sudut pandang mahasiswa yang mengirimnya. */
@@ -67,6 +84,7 @@ export function canOpenSubmission(
 ) {
   return (
     status === "selesai" ||
+    status === "dinilai_manual" ||
     status === "gagal"
   );
 }
@@ -88,12 +106,16 @@ export const STATUS_META: Record<
   { label: string; tone: Tone }
 > = {
   menunggu: {
-    label: "Menunggu",
+    label: "Menunggu dinilai",
     tone: "warning",
   },
   diproses: {
     label: "Diproses",
     tone: "neutral",
+  },
+  dinilai_manual: {
+    label: "Dinilai asisten",
+    tone: "success",
   },
   selesai: {
     label: "Selesai",
@@ -125,6 +147,7 @@ export const EVALUATION_META: Record<
 
 export const STATUS_ORDER: StatusSubmission[] = [
   "selesai",
+  "dinilai_manual",
   "diproses",
   "menunggu",
   "gagal",
@@ -148,6 +171,7 @@ export function countByStatus(
   > = {
     menunggu: 0,
     diproses: 0,
+    dinilai_manual: 0,
     selesai: 0,
     gagal: 0,
   };

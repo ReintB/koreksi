@@ -34,7 +34,19 @@ async function ensureLoaded() {
   }
   await loading;
 }
-export function setMasterData(value: SetStateAction<MasterData>) {
+/**
+ * @param pesanSukses ditampilkan hanya setelah server menerima perubahannya.
+ *
+ * Sebelumnya pemanggil memunculkan toast "berhasil" seketika, sementara PUT-nya
+ * baru berangkat sesudah itu. Ketika server menolak — misalnya karena tugas
+ * yang hendak dihapus masih punya pengumpulan — pengguna sudah terlanjur
+ * diberi tahu berhasil, lalu melihat barisnya kembali muncul disertai toast
+ * kedua yang membantah toast pertama.
+ */
+export function setMasterData(
+  value: SetStateAction<MasterData>,
+  pesanSukses?: string
+) {
   // Keadaan sebelum perubahan disimpan supaya bisa dikembalikan bila server
   // menolak. Tanpa itu layar menampilkan data yang tidak pernah tersimpan,
   // lengkap dengan toast "berhasil", dan baru ketahuan saat halaman dimuat
@@ -54,6 +66,8 @@ export function setMasterData(value: SetStateAction<MasterData>) {
     currentData = serverData;
     loaded = true;
     emit();
+
+    if (pesanSukses) toast.success(pesanSukses);
   }).catch((error: unknown) => {
     currentData = sebelum;
     emit();

@@ -13,6 +13,10 @@ export type Mahasiswa = {
 };
 
 export type AdminApiSubmission = AdminSubmission & {
+  // Wajib di sini walau opsional pada AdminSubmission: yang datang dari API
+  // selalu membawanya, dan rekap mencocokkan pengumpulan lewat kedua id ini.
+  mataKuliahId: string;
+  tugasId: string;
   skorOtomatis: number | null;
   ditimpa: boolean;
   catatanTimpa?: string | null;
