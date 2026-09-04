@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { useStudentProfile } from "@/hooks/use-submissions";
 import { useAuth } from "@/hooks/use-auth";
+import { inisial } from "@/lib/inisial";
 
 export default function ProfilPage() {
   const { user, loading: authLoading } = useAuth();
@@ -13,6 +14,11 @@ export default function ProfilPage() {
   const kelas = profile
     ? profile.kelas ?? "Belum ditetapkan"
     : "Belum tersedia";
+
+  // Nama roster lebih dipercaya daripada nama Google: itulah yang tertulis di
+  // daftar peserta. Kosong berarti keduanya belum tiba, bukan berarti orangnya
+  // tidak bernama.
+  const namaTampil = profile?.nama ?? user?.name ?? "";
 
   const fields = [
     { icon: UserRound, label: "Nama lengkap", value: profile?.nama ?? user?.name ?? "Belum tersedia" },
@@ -33,8 +39,27 @@ export default function ProfilPage() {
         <Card>
           <CardContent className="p-0">
             <div className="flex items-center gap-4 border-b px-6 py-5">
-              <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted">
-                <UserRound className="size-6 text-muted-foreground" />
+              {/* Foto Google sudah tersimpan sejak login dan selama ini tidak
+                  pernah ditampilkan di mana pun. Inisial dipakai bila akunnya
+                  memang tidak berfoto, dan ikon generik hanya selama datanya
+                  belum tiba — supaya tidak ada kedipan dari "?" ke nama asli. */}
+              <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                {user?.avatarUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={user.avatarUrl}
+                    alt=""
+                    className="size-full object-cover"
+                    // Tanpa ini Google membalas 403 untuk sebagian avatar.
+                    referrerPolicy="no-referrer"
+                  />
+                ) : namaTampil ? (
+                  <span className="text-sm font-medium text-muted-foreground">
+                    {inisial(namaTampil, user?.email)}
+                  </span>
+                ) : (
+                  <UserRound className="size-6 text-muted-foreground" />
+                )}
               </div>
               <div className="min-w-0">
                 <p className="font-medium">
